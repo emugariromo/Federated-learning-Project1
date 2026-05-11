@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AHFoZ · Federated Fraud Detection System v4</title>
+<!--
+╔══════════════════════════════════════════════════════╗
+║  AHFoZ Federated Fraud Detection System  v4.0        ║
+║  Association of Healthcare Funders of Zimbabwe       ║
+║                                                      ║
+║  STANDALONE:  Open this HTML in any browser.         ║
+║               Works fully offline, no server needed. ║
+║               Data lives in browser localStorage.    ║
+║                                                      ║
+║  NETWORK MODE (recommended):                         ║
+║    1. pip install flask flask-cors numpy pandas      ║
+║    2. python ahfoz_server.py                         ║
+║    3. Open http://localhost:5000  (this machine)     ║
+║    4. Share http://YOUR-IP:5000 with client nodes    ║
+║       — they open it on THEIR machine, any network   ║
+║    5. Results submit to YOUR central server & persist║
+║                                                      ║
+║  Central Server password:  ahfoz2024                 ║
+╚══════════════════════════════════════════════════════╝
+-->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Century Gothic system stack ── */
+:root {
+  --cg: "Century Gothic","CenturyGothic","AppleGothic","Gill Sans MT",
+        "Trebuchet MS",Calibri,sans-serif;
+  --mono: "Courier New",Courier,monospace;
+
+  /* Palette */
+  --bg:     #0a0700;
+  --navy:   #060f1c;
+  --panel:  #0a1520;
+  --card:   #0e1c2d;
+  --border: #142336;
+  --b2:     #1a3050;
+  --b3:     #224068;
+  --green:  #c4962a;
+  --g2:     #8b6914;
+  --amber:  #f0a500;
+  --red:    #e84060;
+  --blue:   #3a7bd5;
+  --purple: #9d6ff0;
+  --teal:   #14b8d4;
+  --text:   #bfd8f5;
+  --muted:  #446480;
+  --ghost:  #0e1e30;
+  --white:  #edf5ff;
+  --r: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  font-family: var(--cg);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.view { display: none; min-height: 100vh; flex-direction: column; }
+.view.active { display: flex; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 99px; }
+
+/* ── Landing ─────────────────────────────────────────── */
+#vl {
+  align-items: center; justify-content: center;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 10%, rgba(0,60,130,.18), transparent 60%),
+    radial-gradient(ellipse 60% 80% at 90% 90%, rgba(0,80,50,.14), transparent 60%),
+    var(--bg);
+  position: relative; overflow: hidden;
+}
+#vl::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(20,35,54,.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,35,54,.55) 1px, transparent 1px);
+  background-size: 60px 60px; opacity: .22; pointer-events: none;
+}
+.lw {
+  position: relative; z-index: 1; text-align: center;
+  max-width: 840px; padding: 3rem 2rem;
+  animation: riseIn .8s cubic-bezier(.22,.68,0,1.2) both;
+}
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.l-logo { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+.l-mark {
+  width: 58px; height: 58px; border-radius: 14px;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center; font-size: 1.7rem;
+  box-shadow: 0 0 36px rgba(0,214,143,.28);
+}
+.l-org-n { font-size: .74rem; letter-spacing: .22em; color: var(--green); text-transform: uppercase; font-weight: 700; }
+.l-org-s { font-size: .6rem; color: var(--muted); letter-spacing: .06em; }
+.l-badge {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: rgba(0,214,143,.06); border: 1px solid rgba(0,214,143,.2);
+  color: var(--green); font-size: .6rem; letter-spacing: .2em; text-transform: uppercase;
+  padding: .28rem .95rem; border-radius: 99px; margin-bottom: 1.8rem;
+}
+.blink { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: bk 2s ease infinite; }
+@keyframes bk { 0%,100% { opacity: 1; } 50% { opacity: .1; } }
+.l-h1 {
+  font-size: clamp(1.9rem,4.5vw,3.3rem); font-weight: 700;
+  color: var(--white); line-height: 1.1; margin-bottom: .8rem; letter-spacing: -.01em;
+}
+.l-h1 em { color: var(--green); font-style: normal; }
+.l-sub { font-size: .78rem; color: var(--muted); line-height: 2; margin-bottom: 2.8rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+.srv-cfg {
+  background: rgba(20,35,54,.5); border: 1px solid var(--border);
+  border-radius: var(--r); padding: .8rem 1.2rem; margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+}
+.srv-cfg-lbl { font-size: .6rem; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
+.srv-cfg-in {
+  flex: 1; min-width: 200px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; padding: .44rem .9rem; color: var(--text);
+  font-family: var(--cg); font-size: .78rem; outline: none; transition: border-color .2s;
+}
+.srv-cfg-in:focus { border-color: var(--green); }
+.srv-st { font-size: .6rem; padding: .2rem .7rem; border-radius: 99px; white-space: nowrap; }
+.srv-on  { background: rgba(0,214,143,.1);  color: var(--green);  border: 1px solid rgba(0,214,143,.25); }
+.srv-off { background: rgba(232,64,96,.1);  color: var(--red);    border: 1px solid rgba(232,64,96,.25); }
+.srv-chk { background: rgba(68,100,128,.14); color: var(--muted);  border: 1px solid var(--border); }
+.rg { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.8rem; }
+.rc {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2.2rem 1.8rem; cursor: pointer;
+  transition: all .24s; text-align: left; position: relative; overflow: hidden;
+}
+.rc::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  transform: scaleX(0); transform-origin: left; transition: transform .24s;
+}
+.rc.s::after { background: linear-gradient(90deg, var(--amber), #ff8c00); }
+.rc.c::after { background: linear-gradient(90deg, var(--green), var(--teal)); }
+.rc:hover { border-color: var(--b2); transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.rc:hover::after { transform: scaleX(1); }
+.rc.s:hover { border-color: rgba(240,165,0,.35); }
+.rc.c:hover { border-color: rgba(0,214,143,.3); }
+.rc-ic { font-size: 2.2rem; margin-bottom: 1rem; display: block; }
+.rc-n { font-size: 1.1rem; font-weight: 700; color: var(--white); margin-bottom: .5rem; }
+.rc-d { font-size: .7rem; color: var(--muted); line-height: 1.8; }
+.rc-tag { display: inline-block; font-size: .57rem; letter-spacing: .1em; text-transform: uppercase; padding: .17rem .58rem; border-radius: 99px; margin-top: 1rem; }
+.rc.s .rc-tag { background: rgba(240,165,0,.1); color: var(--amber); }
+.rc.c .rc-tag { background: rgba(0,214,143,.08); color: var(--green); }
+.l-foot { font-size: .58rem; color: var(--ghost); letter-spacing: .05em; line-height: 2; }
+.srv-hint { font-size: .6rem; color: var(--muted); margin-top: -.6rem; margin-bottom: 1rem; text-align: left; padding: 0 .2rem; }
+
+/* ── Modal ─────────────────────────────────────────────── */
+.mo { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(3,7,14,.92); backdrop-filter: blur(12px); align-items: center; justify-content: center; }
+.mo.on { display: flex; }
+.mb {
+  background: var(--panel); border: 1px solid var(--b2); border-radius: 14px;
+  padding: 2.8rem; width: 100%; max-width: 420px; text-align: center;
+  animation: riseIn .32s cubic-bezier(.22,.68,0,1.2) both;
+  box-shadow: 0 4px 32px rgba(0,0,0,.6);
+}
+.mi { font-size: 2.8rem; margin-bottom: .9rem; }
+.mt { font-size: 1.2rem; font-weight: 700; color: var(--white); margin-bottom: .4rem; }
+.ms { font-size: .7rem; color: var(--muted); margin-bottom: 1.6rem; line-height: 1.7; }
+
+/* ── Shared form inputs ─────────────────────────────────── */
+.fl { margin-bottom: .9rem; text-align: left; }
+.fl label, .fi-lbl { font-size: .58rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: .36rem; display: block; }
+.fi {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 7px; padding: .68rem 1.1rem; color: var(--text);
+  font-family: var(--cg); font-size: .8rem; outline: none; transition: border-color .2s;
+}
+.fi:focus { border-color: var(--green); }
+.fi.err { border-color: var(--red); }
+.em { font-size: .66rem; color: var(--red); margin-top: .36rem; display: none; }
+.em.on { display: block; }
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .48rem; padding: .75rem 1.6rem; border-radius: 8px; font-family: var(--cg); font-size: .76rem; font-weight: 700; cursor: pointer; border: none; transition: all .2s; }
+.btn-g { background: var(--green); color: #0a0700; width: 100%; }
+.btn-g:hover { background: #e8c060; box-shadow: 0 4px 20px rgba(0,214,143,.3); }
+.btn-a { background: var(--amber); color: #0a0700; width: 100%; }
+.btn-a:hover { background: #ffc030; }
+.btn-gh { background: transparent; border: 1px solid var(--b2); color: var(--muted); margin-top: .48rem; width: 100%; }
+.btn-gh:hover { border-color: var(--text); color: var(--text); }
+.b { display: inline-flex; align-items: center; gap: .3rem; padding: .44rem .9rem; border-radius: 7px; font-family: var(--cg); font-size: .68rem; font-weight: 700; cursor: pointer; border: none; transition: all .2s; }
+.bg { background: var(--green); color: #0a0700; } .bg:hover { background: #e8c060; }
+.bg:disabled { background: var(--ghost); color: var(--muted); cursor: not-allowed; }
+.bo { background: transparent; border: 1px solid var(--b2); color: var(--muted); } .bo:hover { border-color: var(--text); color: var(--text); }
+.ba { background: var(--amber); color: #0a0700; } .ba:hover { background: #ffc030; }
+.bt { background: rgba(20,184,212,.09); border: 1px solid rgba(20,184,212,.22); color: var(--teal); } .bt:hover { background: rgba(20,184,212,.18); }
+
+/* ── Topbar ─────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .82rem 1.6rem; border-bottom: 1px solid var(--border);
+  background: rgba(6,15,28,.97); backdrop-filter: blur(16px);
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+}
+.tl { display: flex; align-items: center; gap: .78rem; }
+.tmk { width: 32px; height: 32px; border-radius: 7px; background: linear-gradient(135deg,var(--g2),var(--blue)); display: flex; align-items: center; justify-content: center; font-size: .95rem; box-shadow: 0 2px 12px rgba(0,168,107,.22); }
+.tl h1 { font-size: .9rem; font-weight: 700; color: var(--white); }
+.tl span { color: var(--green); }
+.tr { display: flex; align-items: center; gap: .88rem; }
+.rp { font-size: .57rem; letter-spacing: .12em; text-transform: uppercase; padding: .2rem .78rem; border-radius: 99px; }
+.rp-s { background: rgba(240,165,0,.09); color: var(--amber); border: 1px solid rgba(240,165,0,.24); }
+.rp-c { background: rgba(0,214,143,.07); color: var(--green); border: 1px solid rgba(0,214,143,.2); }
+.bk-btn { background: none; border: 1px solid var(--b2); border-radius: 6px; color: var(--muted); font-family: var(--cg); font-size: .65rem; padding: .26rem .76rem; cursor: pointer; transition: all .2s; }
+.bk-btn:hover { border-color: var(--text); color: var(--text); }
+
+/* ── Client layout ──────────────────────────────────────── */
+#vc { background: var(--bg); }
+.cbody { display: grid; grid-template-columns: 278px 1fr; flex: 1; height: calc(100vh - 52px); overflow: hidden; }
+.cside { border-right: 1px solid var(--border); background: var(--navy); padding: .9rem; overflow-y: auto; display: flex; flex-direction: column; gap: .85rem; }
+.cmain { padding: 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: .95rem; }
+
+/* ── Cards ──────────────────────────────────────────────── */
+.sc { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.sch { display: flex; align-items: center; justify-content: space-between; padding: .64rem 1rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,.14); }
+.sct { font-size: .58rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+.scb { padding: .85rem 1rem; }
+.sr { display: flex; justify-content: space-between; align-items: center; padding: .35rem 0; border-bottom: 1px solid rgba(20,35,54,.5); font-size: .7rem; }
+.sr:last-child { border-bottom: none; }
+.sl { color: var(--muted); }
+.sv { color: var(--text); font-weight: 600; }
+.gc { color: var(--green); } .ac { color: var(--amber); } .rc { color: var(--red); }
+.bc { color: var(--blue); } .pc { color: var(--purple); } .tc { color: var(--teal); }
+
+/* ── Drop zone ──────────────────────────────────────────── */
+.dz { border: 2px dashed var(--b2); border-radius: 10px; padding: 1.9rem 1.2rem; text-align: center; cursor: pointer; transition: all .2s; position: relative; }
+.dz:hover, .dz.ov { border-color: var(--green); background: rgba(0,214,143,.03); }
+.dz input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.dz-ic { font-size: 1.9rem; margin-bottom: .44rem; display: block; }
+.dz-tx { font-size: .67rem; color: var(--muted); line-height: 1.9; }
+.dz-tx strong { color: var(--green); }
+.dz-tx code { display: inline-block; background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: .07rem .36rem; font-family: var(--mono); font-size: .58rem; color: var(--teal); }
+.cmap { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: .62rem .92rem; margin-top: .62rem; }
+.cmap-t { color: var(--green); font-weight: 700; margin-bottom: .34rem; text-transform: uppercase; letter-spacing: .1em; font-size: .6rem; }
+.cmap-g { display: flex; flex-wrap: wrap; gap: .24rem; }
+.chip { display: inline-flex; align-items: center; gap: .2rem; border-radius: 4px; font-size: .55rem; padding: .1rem .42rem; }
+.chip-ok  { background: rgba(0,214,143,.07);  border: 1px solid rgba(0,214,143,.18); color: var(--green); }
+.chip-mis { background: rgba(232,64,96,.07);  border: 1px solid rgba(232,64,96,.18); color: var(--red); }
+.chip-ex  { background: rgba(68,100,128,.12); border: 1px solid var(--border); color: var(--muted); }
+
+/* ── Tables ─────────────────────────────────────────────── */
+.tw { overflow-x: auto; overflow-y: auto; border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: .66rem; }
+thead { position: sticky; top: 0; z-index: 1; }
+thead tr { background: var(--card); }
+th { padding: .44rem .75rem; text-align: left; color: var(--green); font-size: .55rem; letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--b2); white-space: nowrap; font-family: var(--cg); }
+td { padding: .4rem .75rem; border-bottom: 1px solid rgba(20,35,54,.4); color: var(--text); white-space: nowrap; }
+tr:hover td { background: rgba(0,214,143,.02); }
+.badge { display: inline-block; font-size: .53rem; font-weight: 700; padding: .1rem .42rem; border-radius: 4px; letter-spacing: .07em; text-transform: uppercase; font-family: var(--cg); }
+.bh { background: rgba(232,64,96,.16);  color: var(--red); }
+.bm { background: rgba(240,165,0,.16);  color: var(--amber); }
+.bl { background: rgba(0,214,143,.1);   color: var(--green); }
+.bb { background: rgba(58,123,213,.12); color: var(--blue); }
+.bp { background: rgba(157,111,240,.12);color: var(--purple); }
+.bt2 { background: rgba(20,184,212,.1); color: var(--teal); }
+.bn { background: rgba(68,100,128,.13); color: var(--muted); }
+
+/* ── Progress / Log ─────────────────────────────────────── */
+.pw { background: var(--card); border-radius: 99px; height: 4px; overflow: hidden; }
+.pb { height: 100%; border-radius: 99px; background: linear-gradient(90deg,var(--green),var(--teal)); transition: width .38s ease; }
+.logbox { background: #020610; border: 1px solid var(--border); border-radius: 8px; padding: .75rem; height: 175px; overflow-y: auto; font-size: .63rem; line-height: 1.92; font-family: var(--mono); }
+.ll { color: var(--muted); } .ok { color: var(--green); } .er { color: var(--red); }
+.in { color: var(--blue); } .wn { color: var(--amber); } .fl2 { color: var(--purple); }
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.tbar { display: flex; gap: .18rem; padding: .56rem .88rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,.1); overflow-x: auto; flex-shrink: 0; }
+.tbb { background: none; border: 1px solid transparent; border-radius: 6px; padding: .27rem .74rem; font-family: var(--cg); font-size: .62rem; color: var(--muted); cursor: pointer; transition: all .18s; white-space: nowrap; }
+.tbb.on { border-color: var(--green); color: var(--green); background: rgba(0,214,143,.07); }
+.tbb:hover:not(.on) { border-color: var(--b2); color: var(--text); }
+.tp { display: none; padding: .9rem 1rem; }
+.tp.on { display: block; }
+
+/* ── Insight cards ──────────────────────────────────────── */
+.ig { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: .8rem; margin-bottom: .9rem; }
+.ic { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 1.05rem 1.1rem; transition: all .2s; position: relative; overflow: hidden; }
+.ic:hover { border-color: var(--b2); transform: translateY(-2px); box-shadow: 0 4px 18px rgba(0,0,0,.5); }
+.ic::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+.ic.r::before  { background: var(--red); }   .ic.ac::before { background: var(--amber); }
+.ic.gc::before { background: var(--green); } .ic.bc::before { background: var(--blue); }
+.ic.pc::before { background: var(--purple); } .ic.tc::before { background: var(--teal); }
+.ic-i { font-size: 1.35rem; margin-bottom: .42rem; }
+.ic-t { font-size: .65rem; font-weight: 700; color: var(--white); margin-bottom: .2rem; }
+.ic-v { font-size: 1.55rem; font-weight: 700; margin-bottom: .14rem; line-height: 1; }
+.ic.r .ic-v  { color: var(--red); }    .ic.ac .ic-v { color: var(--amber); }
+.ic.gc .ic-v { color: var(--green); }  .ic.bc .ic-v { color: var(--blue); }
+.ic.pc .ic-v { color: var(--purple); } .ic.tc .ic-v { color: var(--teal); }
+.ic-d { font-size: .6rem; color: var(--muted); line-height: 1.65; }
+
+/* ── Server / KPI strip ─────────────────────────────────── */
+#vs { background: var(--bg); }
+.svb { flex: 1; padding: 1.3rem 1.5rem; overflow-y: auto; }
+.kstrip { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: .8rem; margin-bottom: 1.4rem; }
+.kc {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+  padding: .95rem 1.1rem; position: relative; overflow: hidden; transition: all .2s;
+}
+.kc:hover { border-color: var(--b2); transform: translateY(-2px); box-shadow: 0 4px 18px rgba(0,0,0,.45); }
+.kc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: var(--r) var(--r) 0 0; }
+.kc.g::before { background: linear-gradient(90deg,var(--green),var(--teal)); }
+.kc.a::before { background: linear-gradient(90deg,var(--amber),#ff8c00); }
+.kc.r::before { background: linear-gradient(90deg,var(--red),#c0392b); }
+.kc.b::before { background: linear-gradient(90deg,var(--blue),var(--purple)); }
+.kc.p::before { background: linear-gradient(90deg,var(--purple),var(--blue)); }
+.kc.t::before { background: linear-gradient(90deg,var(--teal),var(--green)); }
+.kl { font-size: .56rem; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; margin-bottom: .36rem; }
+.kv { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.kc.g .kv { color: var(--green); } .kc.a .kv { color: var(--amber); } .kc.r .kv { color: var(--red); }
+.kc.b .kv { color: var(--blue); }  .kc.p .kv { color: var(--purple); } .kc.t .kv { color: var(--teal); }
+.ksub { font-size: .57rem; color: var(--muted); margin-top: .24rem; }
+.stabs { display: flex; gap: .18rem; border-bottom: 1px solid var(--border); margin-bottom: 1.2rem; overflow-x: auto; }
+.stb { background: none; border: none; border-bottom: 2px solid transparent; padding: .5rem 1rem; font-family: var(--cg); font-size: .64rem; color: var(--muted); cursor: pointer; transition: all .2s; white-space: nowrap; font-weight: 700; }
+.stb.on { border-bottom-color: var(--green); color: var(--green); }
+.stb:hover:not(.on) { color: var(--text); }
+.stp { display: none; } .stp.on { display: block; }
+.d2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-bottom: .9rem; }
+@media (max-width:1000px) { .d2 { grid-template-columns: 1fr; } }
+@media (max-width:660px)  { .rg { grid-template-columns: 1fr; } }
+.nc { display: flex; align-items: center; gap: .8rem; padding: .64rem .9rem; border-bottom: 1px solid var(--border); }
+.nc:last-child { border-bottom: none; }
+.na { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg,#002055,#003870); display: flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 700; color: var(--green); flex-shrink: 0; }
+.ni { flex: 1; min-width: 0; }
+.nn { font-size: .75rem; font-weight: 700; color: var(--white); }
+.nm { font-size: .6rem; color: var(--muted); margin-top: 2px; }
+.nba { font-size: .55rem; padding: .14rem .5rem; border-radius: 99px; background: rgba(0,214,143,.07); color: var(--green); border: 1px solid rgba(0,214,143,.18); }
+.bars { display: flex; gap: 3px; align-items: flex-end; }
+.bar { flex: 1; min-width: 5px; border-radius: 2px 2px 0 0; transition: height .4s; cursor: default; }
+.barlbls { display: flex; gap: 3px; margin-top: .26rem; font-size: .52rem; color: var(--muted); }
+.barlbls div { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp { background: rgba(232,64,96,.04); border: 1px solid rgba(232,64,96,.18); border-radius: 8px; padding: .84rem 1rem; margin-bottom: .58rem; transition: all .2s; }
+.fp:hover { border-color: rgba(232,64,96,.3); }
+.fp-h { display: flex; align-items: center; gap: .58rem; margin-bottom: .44rem; flex-wrap: wrap; }
+.fp-cn { font-size: .92rem; font-weight: 700; color: var(--red); }
+.fp-rs { display: flex; flex-wrap: wrap; gap: .22rem; margin-bottom: .34rem; }
+.fp-row { font-size: .6rem; color: var(--muted); padding: .15rem .55rem; border-left: 2px solid var(--border); margin-bottom: .12rem; line-height: 1.65; }
+.ref-btn { display: inline-flex; align-items: center; gap: .27rem; background: rgba(20,184,212,.07); border: 1px solid rgba(20,184,212,.2); color: var(--teal); font-size: .59rem; padding: .22rem .64rem; border-radius: 6px; cursor: pointer; font-family: var(--cg); transition: all .2s; }
+.ref-btn:hover { background: rgba(20,184,212,.15); }
+.eval-g { display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); gap: .82rem; margin-bottom: 1rem; }
+.ev { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 1.05rem; text-align: center; transition: all .2s; }
+.ev:hover { border-color: var(--b2); transform: translateY(-2px); }
+.ev-v { font-size: 2.2rem; font-weight: 700; margin: .36rem 0 .16rem; }
+.ev-l { font-size: .58rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.ev-d { font-size: .6rem; color: var(--muted); margin-top: .26rem; line-height: 1.6; }
+.gauge { width: 100%; height: 5px; background: var(--card); border-radius: 99px; margin: .44rem 0; overflow: hidden; }
+.gf { height: 100%; border-radius: 99px; transition: width .8s ease; }
+.cf-g { display: grid; grid-template-columns: 1fr 1fr; gap: .44rem; max-width: 300px; margin: .7rem auto; }
+.cf-c { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: .7rem; text-align: center; }
+.cf-l { font-size: .55rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .24rem; }
+.cf-v { font-size: 1.4rem; font-weight: 700; }
+.empty { text-align: center; padding: 2.2rem; color: var(--muted); font-size: .7rem; }
+.empty .ei { font-size: 1.8rem; margin-bottom: .5rem; display: block; opacity: .3; }
+.flash { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; padding: .86rem 1.4rem; border-radius: 10px; font-size: .75rem; font-weight: 700; font-family: var(--cg); transform: translateY(100px); opacity: 0; transition: all .32s; }
+.flash.on { transform: translateY(0); opacity: 1; }
+.f-ok { background: var(--green); color: #0a0700; box-shadow: 0 8px 30px rgba(0,214,143,.36); }
+.f-er { background: var(--red); color: #fff; box-shadow: 0 8px 30px rgba(232,64,96,.36); }
+.ds { background: var(--card); border: 1px solid var(--b2); color: var(--text); border-radius: 5px; padding: .2rem .5rem; font-family: var(--cg); font-size: .62rem; outline: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spn { display: inline-block; animation: spin .8s linear infinite; }
+
+/* Share modal */
+.share-modal-box { max-width: 520px; }
+.share-url-row { display:flex;gap:.5rem;margin-top:.8rem; }
+.share-url-input { flex:1;background:var(--card);border:1px solid var(--b2);border-radius:6px;padding:.55rem .9rem;color:var(--teal);font-family:var(--mono);font-size:.72rem;outline:none; }
+.share-steps { text-align:left;margin-top:1rem; }
+.share-steps li { font-size:.7rem;color:var(--muted);line-height:2;list-style:none;padding-left:.2rem; }
+.share-steps li::before { content:'→  ';color:var(--green); }
+.share-sk-box { background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.62rem;color:var(--muted);text-align:left; }
+/* Session banner */
+.session-banner { display:none;align-items:center;gap:.7rem;background:rgba(20,184,212,.08);border:1px solid rgba(20,184,212,.22);border-radius:7px;padding:.5rem 1rem;margin:.6rem 1rem 0;font-size:.68rem;color:var(--teal); }
+.session-banner strong { color:var(--white); }
+
+
+/* Share modal extras */
+.share-url-row { display:flex;gap:.5rem;margin-top:.8rem; }
+.share-url-input { flex:1;background:var(--card);border:1px solid var(--b2);border-radius:6px;padding:.55rem .9rem;color:var(--teal);font-family:var(--mono);font-size:.72rem;outline:none;word-break:break-all; }
+.share-steps { text-align:left;margin-top:.9rem; }
+.share-steps li { font-size:.7rem;color:var(--muted);line-height:2.1;list-style:none; }
+.share-steps li::before { content:'→  ';color:var(--green); }
+.share-sk-box { background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.62rem;color:var(--muted);text-align:left;line-height:1.8; }
+.session-banner { display:none;align-items:center;gap:.7rem;background:rgba(20,184,212,.08);border:1px solid rgba(20,184,212,.22);border-radius:7px;padding:.5rem 1.1rem;margin:.5rem 1rem 0;font-size:.68rem;color:var(--teal); }
+#share-gen-status { font-size:.68rem;color:var(--muted);margin-top:.6rem;min-height:1.4rem; }
+
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<section id="vl" class="view active">
+<div class="lw">
+  <div class="l-logo">
+    <div class="l-mark" style="background:none;border:none;box-shadow:none;padding:2px"><img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(196,150,42,.4))"></div>
+    <div><div class="l-org-n">AHFoZ</div><div class="l-org-s">Association of Healthcare Funders of Zimbabwe</div></div>
+  </div>
+  <div class="l-badge"><div class="blink"></div>Federated Learning · Modules 3 &amp; 4 · v4.0 · Python / Flask</div>
+  <h1 class="l-h1">Healthcare Fraud<br><em>Detection System</em></h1>
+  <p class="l-sub">
+    Privacy-preserving collaborative FWA detection across Zimbabwe's medical aid societies.<br>
+    Accepts <strong style="color:var(--green)">any CSV layout</strong> — column names detected automatically from any funder's system.<br>
+    Works fully offline <strong style="color:var(--amber)">or</strong> over any network with the Python server.
+  </p>
+  <div class="srv-cfg">
+    <span class="srv-cfg-lbl">🔌 Central Server</span>
+    <input type="text" class="srv-cfg-in" id="srv-url" value="http://localhost:5000" placeholder="http://server-ip:5000">
+    <button class="b bo" onclick="checkSrv()">Check</button>
+    <span class="srv-st srv-chk" id="srv-st-lbl">Not checked</span>
+  </div>
+  <div class="srv-hint">
+    💡 <strong style="color:var(--amber)">Standalone:</strong> leave URL as-is — data stays in this browser.
+    &nbsp;|&nbsp;
+    <strong style="color:var(--teal)">Network mode:</strong> run <code style="background:var(--card);border:1px solid var(--border);border-radius:4px;padding:.05rem .3rem;font-family:var(--mono);font-size:.6rem;color:var(--teal)">python ahfoz_server.py</code> on your machine,
+    enter its IP here, then share that URL to client nodes on any network.
+  </div>
+    <div style="text-align:center;margin-bottom:1.2rem">
+    <button class="btn btn-g" style="width:auto;padding:.65rem 2rem;font-size:.82rem" onclick="showShareModal()">
+      🔗 Generate Share Link for Client Nodes
+    </button>
+    <div style="font-size:.62rem;color:var(--muted);margin-top:.5rem">Generate a link — send to any medical aid society — they open it and submit results here</div>
+  </div>
+  <div style="text-align:center;margin-bottom:1.3rem">
+    <button class="btn btn-g" style="width:auto;padding:.7rem 2.2rem;font-size:.82rem;gap:.6rem" onclick="document.getElementById('modal-share').classList.add('on');showShareModal()">
+      🔗 Generate Share Link for Client Nodes
+    </button>
+    <div style="font-size:.62rem;color:var(--muted);margin-top:.45rem">Creates a cloud session — share the link with any funder on any network</div>
+  </div>
+<div style="display:flex;align-items:center;gap:.8rem;background:rgba(0,214,143,.05);border:1px solid rgba(0,214,143,.18);border-radius:9px;padding:.65rem 1.1rem;margin-bottom:1.2rem">
+    <div style="font-size:1.4rem">☁</div>
+    <div style="flex:1">
+      <div style="font-size:.72rem;font-weight:700;color:var(--white);margin-bottom:.18rem">Supabase PostgreSQL — Real-Time Cross-Network Sync</div>
+      <div style="font-size:.63rem;color:var(--muted);line-height:1.7">Fully encrypted at rest · Works across any network · Node submits → Central Server sees it instantly</div>
+    </div>
+    <span id="supabase-status" style="font-size:.65rem;color:var(--muted);white-space:nowrap">⏳ Connecting…</span>
+    <input type="hidden" id="supabase-conn-input">
+  </div>
+  <div class="rg">
+    <div class="rc s" onclick="showPw()">
+      <span class="rc-ic"><img src="data:image/png;base64,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" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 1px 4px rgba(196,150,42,.3))"></span>
+      <div class="rc-n">Central Server</div>
+      <div class="rc-d">Consolidated AHFoZ dashboard — industry-wide FWA trends, flagged claims with referral, cross-funder provider daily intelligence, and full model evaluation metrics.</div>
+      <div class="rc-tag">🔒 Password Required · AHFoZ Admin Only</div>
+    </div>
+    <div class="rc c" onclick="goCli()">
+      <span class="rc-ic">🏥</span>
+      <div class="rc-n">Client Node</div>
+      <div class="rc-d">Upload any claims CSV — columns auto-detected from 40+ name variants. Run all 12 forensic checks, view flagged claim numbers with reasons, and submit insights to the central server.</div>
+      <div class="rc-tag">▶ Any Medical Aid Society · Any Network · Any CSV Format</div>
+    </div>
+  </div>
+  </div>
+  <div class="l-foot">
+    AHFoZ · Federated Time-Series Fraud Detection · Modules 3 &amp; 4 Analytics Engine ·
+    Developed in Python / Flask · Deployed as single HTML · Raw data never leaves this machine ·
+    Compliant with Zimbabwe Data Protection Act
+  </div>
+</div>
+</section>
+
+<!-- PASSWORD MODAL -->
+<div class="mo" id="mpw">
+  <div class="mb">
+    <div class="mi">🔐</div>
+    <div class="mt">Central Server Access</div>
+    <div class="ms">Enter the AHFoZ administrator password to access the consolidated fraud intelligence dashboard.</div>
+    <div class="fl"><label>Password</label><input type="password" class="fi" id="pw-in" placeholder="Enter password…" onkeydown="if(event.key==='Enter')chkPw()"><div class="em" id="pw-err">Incorrect password. Please try again.</div></div>
+    <button class="btn btn-a" onclick="chkPw()">🔓 Unlock Dashboard</button>
+    <button class="btn btn-gh" onclick="closePw()">Cancel</button>
+  </div>
+</div>
+
+<!-- CLIENT NODE VIEW -->
+<section id="vc" class="view">
+<div class="topbar">
+  <div class="tl"><div class="tmk" style="background:none;border:none;box-shadow:none;padding:1px"><img src="data:image/png;base64,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" style="width:26px;height:26px;object-fit:contain"></div><h1>AHFoZ · <span>Client Node</span></h1></div>
+  <div class="tr">
+    <span style="font-size:.6rem;color:var(--muted)" id="cli-mode">Standalone mode</span>
+    <span class="rp rp-c">Client Node</span>
+    <button class="bk-btn" onclick="goHome()">← Back</button>
+  </div>
+</div>
+<!-- SESSION BANNER (shown when client joins via shared link) -->
+<div class="session-banner" id="share-banner">
+  🔑 <span>You are connected to a shared session — key: <strong id="share-banner-key">—</strong></span>
+  <span style="flex:1"></span>
+  <span style="color:var(--muted);font-size:.6rem">Submit results → they appear on the central dashboard</span>
+</div>
+<!-- SESSION BANNER -->
+<div class="session-banner" id="share-banner">
+  ☁ <span>Connected to cloud session — bin: <strong id="share-banner-key" style="font-family:var(--mono)">—</strong></span>
+  <span style="flex:1"></span>
+  <span style="color:var(--muted);font-size:.6rem">Submit → appears on Central Server dashboard</span>
+</div>
+
+<!-- Server IP banner (shown when served from Python) -->
+<div id="server-ip-banner" style="display:none;align-items:center;gap:.8rem;background:rgba(0,214,143,.06);border:1px solid rgba(0,214,143,.2);border-radius:7px;padding:.55rem 1.1rem;margin:.5rem 1rem 0;font-size:.7rem;color:var(--green)">
+  🌐 <span>This page is served from the Python server. Nodes on your network should open: <strong id="server-ip-text" style="color:var(--white);font-family:var(--mono)">—</strong></span>
+  <button onclick="navigator.clipboard?.writeText(document.getElementById('server-ip-text').textContent).then(()=>flash('✅ URL copied!'))" class="b bo" style="font-size:.6rem;padding:.2rem .6rem">Copy URL</button>
+</div>
+<!-- File mode banner (shown when opened as local file) -->
+<div id="file-mode-banner" style="display:none;align-items:center;gap:.8rem;background:rgba(240,165,0,.07);border:1px solid rgba(240,165,0,.22);border-radius:7px;padding:.55rem 1.1rem;margin:.5rem 1rem 0;font-size:.7rem;color:var(--amber)">
+  ⚠ <span>Opened as a local file. Cross-machine submission requires the Python server. Run <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--mono)">python ahfoz_server.py</code> and open <strong>http://YOUR-IP:5000</strong> instead.</span>
+</div>
+<div class="cbody">
+  <div class="cside">
+    <div class="sc"><div class="sch"><span class="sct">Node Identity</span></div>
+      <div class="scb" style="display:flex;flex-direction:column;gap:.6rem">
+        <div><label class="fi-lbl">Medical Aid Society Name</label>
+          <input type="text" class="fi" id="nn" value="" placeholder="Type fund name e.g. CIMAS" oninput="onNodeNameChange()" style="border-color:rgba(240,165,0,.5)">
+          <div style="font-size:.57rem;color:#446480;margin-top:.2rem;line-height:1.65">&#x26A0; Change name for each fund you submit</div>
+        </div>
+        <button class="b bo" onclick="newSession()" style="width:100%;justify-content:center;margin-top:.1rem">&#x1F504; New Session / Different Fund</button>
+        <div><label class="fi-lbl">Node ID (auto-generated)</label><input type="text" class="fi" id="nid" readonly style="opacity:.4"></div>
+      </div>
+    </div>
+    <div class="sc"><div class="sch"><span class="sct">Session Status</span></div><div class="scb">
+      <div class="sr"><span class="sl">Status</span><span class="sv gc" id="c-st">Ready</span></div>
+      <div class="sr"><span class="sl">Records Loaded</span><span class="sv" id="c-rec">0</span></div>
+      <div class="sr"><span class="sl">Columns Mapped</span><span class="sv gc" id="c-cols">—</span></div>
+      <div class="sr"><span class="sl">Total Claimed</span><span class="sv" id="c-tot">—</span></div>
+      <div class="sr"><span class="sl">Award Rate</span><span class="sv ac" id="c-ar">—</span></div>
+      <div class="sr"><span class="sl">FWA Alerts</span><span class="sv rc" id="c-al">0</span></div>
+      <div class="sr"><span class="sl">FL Round</span><span class="sv" id="c-rd">—</span></div>
+      <div class="sr"><span class="sl">Submitted to Server</span><span class="sv" id="c-sub">No</span></div>
+    </div></div>
+    <div class="sc"><div class="sch"><span class="sct">Forensic Summary</span></div><div class="scb">
+      <div class="sr"><span class="sl">Outliers (>3SD)</span><span class="sv rc" id="c-3sd">—</span></div>
+      <div class="sr"><span class="sl">Duplicates</span><span class="sv pc" id="c-dp">—</span></div>
+      <div class="sr"><span class="sl">Overpayments</span><span class="sv ac" id="c-op">—</span></div>
+      <div class="sr"><span class="sl">Terminated Members</span><span class="sv rc" id="c-tm">—</span></div>
+      <div class="sr"><span class="sl">Late Claims >90d</span><span class="sv ac" id="c-lt">—</span></div>
+      <div class="sr"><span class="sl">Qty Abuse</span><span class="sv rc" id="c-qt">—</span></div>
+      <div class="sr"><span class="sl">Upcoding Flags</span><span class="sv ac" id="c-uc">—</span></div>
+      <div class="sr"><span class="sl">Tariff Gap</span><span class="sv rc" id="c-tg">—</span></div>
+    </div></div>
+  </div>
+  <div class="cmain">
+    <div class="sc">
+      <div class="sch">
+        <span class="sct">📂 Load Claims Dataset — Any CSV Format</span>
+        <div style="display:flex;gap:.36rem">
+          <button class="b bo" onclick="genData(400)">⚡ 400 Sample</button>
+          <button class="b bo" onclick="genData(1200)">⚡ 1200 Sample</button>
+        </div>
+      </div>
+      <div class="scb">
+        <div class="dz" id="dz">
+          <input type="file" accept=".csv,.txt" onchange="handleFile(event)">
+          <span class="dz-ic">📋</span>
+          <div class="dz-tx">
+            <strong>Drop any claims CSV here</strong> — or click to browse<br>
+            Column names are <strong>automatically detected</strong> from 40+ variants used across Zimbabwe funders.<br>
+            Detected fields: <code>claim_number</code> <code>billed_amount / claimed_amount</code>
+            <code>tariff_awarded_amount</code> <code>final_award</code> <code>provider_id</code>
+            <code>member_id / membership_number</code> <code>treatment_date / service_date</code>
+            <code>captured_date</code> <code>quantity</code> <code>validation_status</code>
+            <code>claim_type</code> and more<br>
+            <span style="opacity:.45;font-size:.58rem">Unrecognised columns are preserved. Missing columns use safe defaults so the model always runs.</span>
+          </div>
+        </div>
+        <div id="cmd" style="display:none"></div>
+        <div id="lm" style="display:none;margin-top:.56rem;font-size:.68rem;color:var(--green)">✅ <span id="lct">0</span> records loaded and ready for forensic analysis.</div>
+      </div>
+    </div>
+    <div class="sc" id="ac" style="display:none">
+      <div class="sch">
+        <span class="sct">🧠 Forensic Analysis Engine — Modules 3 &amp; 4 (12 Checks)</span>
+        <div style="display:flex;gap:.36rem">
+          <button class="b bg" id="br" onclick="runA()">▶ Run Full Analysis</button>
+          <button class="b ba" id="bs" onclick="submitToCloud()" style="display:none">📡 Submit to Cloud</button>
+          <button class="b bo" id="bexp" onclick="exportResults()" style="display:none;font-size:.58rem">💾 Export JSON</button>
+        </div>
+      </div>
+      <div id="pgw" style="display:none;padding:.56rem 1rem;border-bottom:1px solid var(--border)">
+        <div style="font-size:.6rem;color:var(--muted);margin-bottom:.27rem" id="pgl">Initialising...</div>
+        <div class="pw"><div class="pb" id="pgb" style="width:0%"></div></div>
+      </div>
+      <div style="padding:.58rem 1rem;border-bottom:1px solid var(--border)">
+        <div class="logbox" id="logbox"><div class="ll in">// Awaiting dataset load and analysis trigger...</div></div>
+      </div>
+      <div class="tbar" id="ctabs" style="display:none">
+        <button class="tbb on" onclick="cTab(this,'tp-ov')">Overview</button>
+        <button class="tbb" onclick="cTab(this,'tp-fl')">🚩 Flagged Claims</button>
+        <button class="tbb" onclick="cTab(this,'tp-ou')">Outliers</button>
+        <button class="tbb" onclick="cTab(this,'tp-du')">Duplicates</button>
+        <button class="tbb" onclick="cTab(this,'tp-op')">Overpayments</button>
+        <button class="tbb" onclick="cTab(this,'tp-qt')">Qty Abuse</button>
+        <button class="tbb" onclick="cTab(this,'tp-pr')">Providers</button>
+        <button class="tbb" onclick="cTab(this,'tp-dv')">📅 Daily Volumes</button>
+        <button class="tbb" onclick="cTab(this,'tp-mb')">Members</button>
+        <button class="tbb" onclick="cTab(this,'tp-lc')">Late Claims</button>
+      </div>
+      <div class="tp on" id="tp-ov"><div class="ig" id="cig"></div><div id="crat" style="display:grid;grid-template-columns:1fr 1fr;gap:.36rem"></div></div>
+      <div class="tp" id="tp-fl">
+        <div style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.72" id="fl-intro"></div>
+        <div style="display:flex;gap:.42rem;flex-wrap:wrap;align-items:center;margin-bottom:.72rem">
+          <select class="ds" id="cfs" onchange="rfC()"><option value="ALL">All Severity</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select>
+          <select class="ds" id="cfc" onchange="rfC()"><option value="ALL">All Checks</option><option value="OUTLIER">Outlier</option><option value="DUPLICATE">Duplicate</option><option value="OVERPAYMENT">Overpayment</option><option value="QTY_ABUSE">Qty Abuse</option><option value="TERMINATED">Terminated</option><option value="LATE_CLAIM">Late Claim</option><option value="ABOVE_TARIFF">Above Tariff</option><option value="UPCODING">Upcoding</option><option value="HIGH_UTILISER">High Utiliser</option><option value="DAILY_VOLUME">Daily Volume</option></select>
+        </div>
+        <div id="fl-list"></div>
+      </div>
+      <div class="tp" id="tp-ou"><div id="ou-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Claim #</th><th>SD Level</th><th>Provider</th><th>Member</th><th>Amount</th><th>Date</th><th>Service</th><th>Finding</th></tr></thead><tbody id="out-t"></tbody></table></div></div>
+      <div class="tp" id="tp-du"><div id="du-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Claim #</th><th>Member</th><th>Provider</th><th>Svc Code</th><th>Date</th><th>Amount</th><th>Count</th></tr></thead><tbody id="dup-t"></tbody></table></div></div>
+      <div class="tp" id="tp-op"><div id="op-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Claim #</th><th>Provider</th><th>Service</th><th>Claimed</th><th>Tariff</th><th>Awarded</th><th>Excess</th></tr></thead><tbody id="op-t"></tbody></table></div></div>
+      <div class="tp" id="tp-qt"><div id="qt-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Claim #</th><th>Member</th><th>Provider</th><th>Service</th><th>Quantity</th><th>3SD Thresh</th><th>Flag</th></tr></thead><tbody id="qty-t"></tbody></table></div></div>
+      <div class="tp" id="tp-pr"><div id="pr-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Provider ID</th><th>Lines</th><th>Claimed</th><th>Awarded</th><th>Award Rate</th><th>Tariff Gap</th><th>Avg/Line</th><th>Risk</th></tr></thead><tbody id="prov-t"></tbody></table></div></div>
+      <div class="tp" id="tp-dv">
+        <div style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.75">Daily claim submission counts per provider. Flags abnormal single-day volumes. <strong style="color:var(--amber)">Cross-funder aggregation on the central server reveals providers submitting unreasonably high volumes across multiple funds simultaneously — a pattern invisible to any individual funder.</strong></div>
+        <div class="tw" style="max-height:310px"><table><thead><tr><th>Provider ID</th><th>Date</th><th>Claims That Day</th><th>Total Claimed</th><th>× Mean Daily</th><th>SD Level</th><th>Flag</th></tr></thead><tbody id="dv-t"></tbody></table></div>
+      </div>
+      <div class="tp" id="tp-mb"><div id="mb-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Member ID</th><th>Lines</th><th>Total Claimed</th><th>Avg/Line</th><th>Terminated?</th><th>High Utiliser</th><th>Risk</th></tr></thead><tbody id="mem-t"></tbody></table></div></div>
+      <div class="tp" id="tp-lc"><div id="lc-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.62rem;line-height:1.7"></div><div class="tw" style="max-height:310px"><table><thead><tr><th>Claim #</th><th>Member</th><th>Provider</th><th>Treatment Date</th><th>Captured Date</th><th>Lag Days</th><th>Amount</th><th>Risk</th></tr></thead><tbody id="late-t"></tbody></table></div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SERVER DASHBOARD -->
+<section id="vs" class="view">
+<div class="topbar">
+  <div class="tl"><div class="tmk" style="background:none;border:none;box-shadow:none;padding:1px"><img src="data:image/png;base64,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" style="width:26px;height:26px;object-fit:contain"></div><h1>AHFoZ · <span>Central Intelligence</span></h1></div>
+  <div class="tr">
+    <span style="font-size:.6rem;color:var(--muted);font-family:var(--mono)" id="srv-ts">—</span>
+    <span id="auto-sync-st" style="font-size:.56rem;color:#446480">● Auto-sync 15s</span>
+    <button class="b bg" onclick="rDash()" id="sync-btn">☁ Sync Now</button>
+    <button class="b" style="background:rgba(232,64,96,.1);border:1px solid rgba(232,64,96,.25);color:#e84060;font-size:.62rem" onclick="clearAll()">🗑 Clear Cloud</button>
+    <span class="rp rp-s">Central Server</span>
+    <button class="bk-btn" onclick="lockHome()">🔒 Lock</button>
+  </div>
+</div>
+<div class="svb">
+  <div class="kstrip">
+    <div class="kc g"><div class="kl">Active Nodes</div><div class="kv" id="k-n">0</div><div class="ksub">Medical Aid Societies</div></div>
+    <div class="kc a"><div class="kl">FL Rounds</div><div class="kv" id="k-r">0</div><div class="ksub">Submissions received</div></div>
+    <div class="kc r"><div class="kl">FWA Alerts</div><div class="kv" id="k-f">0</div><div class="ksub">Across all nodes</div></div>
+    <div class="kc r"><div class="kl">HIGH Severity</div><div class="kv" id="k-h">0</div><div class="ksub">Critical cases</div></div>
+    <div class="kc b"><div class="kl">Claims Processed</div><div class="kv" id="k-c">0</div><div class="ksub">Industry total</div></div>
+    <div class="kc p"><div class="kl">Duplicates</div><div class="kv" id="k-d">0</div><div class="ksub">Across nodes</div></div>
+    <div class="kc t"><div class="kl">Cross-Funder Provs</div><div class="kv" id="k-xp">0</div><div class="ksub">Submitting 2+ funds</div></div>
+    <div class="kc a"><div class="kl">Industry Tariff Gap</div><div class="kv" id="k-tg">$0</div><div class="ksub">Above-tariff total</div></div>
+  </div>
+  <div class="stabs">
+    <button class="stb on"  onclick="sTab(this,'sv-ov')">📊 Overview</button>
+    <button class="stb"     onclick="sTab(this,'sv-fl')">🚩 Flagged Claims</button>
+    <button class="stb"     onclick="sTab(this,'sv-in')">🌍 Industry Trends</button>
+    <button class="stb"     onclick="sTab(this,'sv-xp')">🔍 Cross-Funder Providers</button>
+    <button class="stb"     onclick="sTab(this,'sv-ev')">📐 Evaluation Metrics</button>
+    <button class="stb"     onclick="sTab(this,'sv-nd')">🏥 Nodes</button>
+    <button class="stb"     onclick="sTab(this,'sv-ou')">📈 Outliers</button>
+    <button class="stb"     onclick="sTab(this,'sv-du')">🔁 Duplicates</button>
+    <button class="stb"     onclick="sTab(this,'sv-op')">💸 Overpayments</button>
+    <button class="stb"     onclick="sTab(this,'sv-fa')">🧠 FL Activity</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="stp on" id="sv-ov">
+    <div class="ig" id="srv-ig"></div>
+    <div class="d2">
+      <div class="sc"><div class="sch"><span class="sct">Connected Nodes</span><span id="nc-l" style="font-size:.6rem;color:var(--muted)">0</span></div><div id="ndl"><div class="empty"><span class="ei">🏥</span>No nodes yet</div></div></div>
+      <div class="sc"><div class="sch"><span class="sct">FWA Severity Distribution</span></div><div class="scb"><div class="bars" id="sev-bc" style="height:65px"></div><div class="barlbls" id="sev-bl"></div></div></div>
+    </div>
+  </div>
+
+  <!-- FLAGGED CLAIMS -->
+  <div class="stp" id="sv-fl">
+    <div style="display:flex;gap:.42rem;align-items:center;margin-bottom:.9rem;flex-wrap:wrap">
+      <span style="font-size:.7rem;color:var(--white);font-weight:700">Flagged Claims — Claim Numbers, Full Reasons &amp; Referral to Funders</span>
+      <div style="flex:1"></div>
+      <select class="ds" id="sf-s" onchange="rSFL()"><option value="ALL">All Severity</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select>
+      <select class="ds" id="sf-c" onchange="rSFL()"><option value="ALL">All Checks</option><option value="OUTLIER">Outlier</option><option value="DUPLICATE">Duplicate</option><option value="OVERPAYMENT">Overpayment</option><option value="QTY_ABUSE">Qty Abuse</option><option value="TERMINATED">Terminated</option><option value="LATE_CLAIM">Late Claim</option><option value="ABOVE_TARIFF">Above Tariff</option><option value="UPCODING">Upcoding</option><option value="HIGH_UTILISER">High Utiliser</option><option value="DAILY_VOLUME">Daily Volume</option></select>
+      <select class="ds" id="sf-n" onchange="rSFL()"><option value="ALL">All Nodes</option></select>
+      <button class="b bt" onclick="expRef()">📤 Export Referral Report</button>
+    </div>
+    <div id="sfl"></div>
+  </div>
+
+  <!-- INDUSTRY TRENDS -->
+  <div class="stp" id="sv-in">
+    <div style="font-size:.98rem;font-weight:700;color:var(--white);margin-bottom:.3rem">Industry-Wide FWA Trends</div>
+    <div style="font-size:.68rem;color:var(--muted);line-height:1.82;margin-bottom:1.1rem">Consolidated across all participating medical aid societies. These patterns are <em style="color:var(--amber)">invisible when analysing a single funder</em> — only visible through federated collaboration.</div>
+    <div class="d2">
+      <div class="sc"><div class="sch"><span class="sct">FWA by Check Type (Industry)</span></div><div class="scb"><div class="bars" id="t-ck" style="height:85px"></div><div class="barlbls" id="t-ckl" style="margin-top:.36rem"></div></div></div>
+      <div class="sc"><div class="sch"><span class="sct">FWA Alerts by Node</span></div><div class="scb"><div class="bars" id="t-nd" style="height:85px"></div><div class="barlbls" id="t-ndl" style="margin-top:.36rem"></div></div></div>
+      <div class="sc"><div class="sch"><span class="sct">Award Rate by Node (%)</span></div><div class="scb"><div class="bars" id="t-ar" style="height:85px"></div><div class="barlbls" id="t-arl" style="margin-top:.36rem"></div></div></div>
+      <div class="sc"><div class="sch"><span class="sct">Tariff Gap by Node</span></div><div class="scb"><div class="bars" id="t-tg" style="height:85px"></div><div class="barlbls" id="t-tgl" style="margin-top:.36rem"></div></div></div>
+    </div>
+    <div class="sc" style="margin-bottom:.9rem"><div class="sch"><span class="sct">Top Service Codes Driving FWA — Industry-Wide</span></div><div class="tw" style="max-height:270px"><table><thead><tr><th>Service Code</th><th>Description</th><th>FWA Flags</th><th>Total Claimed</th><th>Nodes Flagging</th><th>Check Types</th></tr></thead><tbody id="t-sv"></tbody></table></div></div>
+    <div class="sc"><div class="sch"><span class="sct">Monthly FWA Volume Trend</span></div><div class="scb"><div class="bars" id="t-mt" style="height:72px"></div><div class="barlbls" id="t-mtl" style="margin-top:.36rem"></div></div></div>
+  </div>
+
+  <!-- CROSS-FUNDER PROVIDERS -->
+  <div class="stp" id="sv-xp">
+    <div style="font-size:.98rem;font-weight:700;color:var(--white);margin-bottom:.3rem">Cross-Funder Provider Intelligence</div>
+    <div style="font-size:.68rem;color:var(--muted);line-height:1.82;margin-bottom:1.1rem">Providers submitting claims to <strong style="color:var(--amber)">multiple medical aid societies</strong>. Daily volumes aggregated across all funders reveal patterns <em style="color:var(--teal)">invisible to any individual funder.</em></div>
+    <div class="sc" style="margin-bottom:.9rem"><div class="sch"><span class="sct">Providers Appearing Across Multiple Nodes</span><span id="xp-ct" style="font-size:.6rem;color:var(--muted)">0 providers</span></div><div class="tw" style="max-height:300px"><table><thead><tr><th>Provider ID</th><th>Nodes</th><th>Total Lines</th><th>Total Claimed</th><th>Peak Daily</th><th>Peak Date</th><th>Avg Daily</th><th>Cross-Fund Risk</th><th>Funders</th></tr></thead><tbody id="xp-b"></tbody></table></div></div>
+    <div class="sc"><div class="sch"><span class="sct">⚠ Daily Submission Anomalies — Cross-Funder Aggregated View</span><span style="font-size:.58rem;color:var(--red)">Providers submitting unreasonably high claims in one day across all funders</span></div><div class="tw" style="max-height:300px"><table><thead><tr><th>Provider ID</th><th>Date</th><th>Total Claims All Funders</th><th>Funders Billed</th><th>Total Amount</th><th>Normal Daily Avg</th><th>× Mean</th><th>Risk</th></tr></thead><tbody id="xp-d"></tbody></table></div></div>
+  </div>
+
+  <!-- EVALUATION METRICS -->
+  <div class="stp" id="sv-ev">
+    <div style="font-size:.98rem;font-weight:700;color:var(--white);margin-bottom:.3rem">Model Evaluation Metrics</div>
+    <div style="font-size:.68rem;color:var(--muted);line-height:1.82;margin-bottom:1.1rem">
+      Performance of the federated fraud detection model across all submitted nodes.
+      <strong style="color:var(--teal)">Precision proxy</strong> = % of HIGH alerts corroborated by 2+ independent checks (multi-flag = higher confidence).
+      <strong style="color:var(--teal)">Recall proxy</strong> = fraction of the 12 forensic check types triggered.
+      <strong style="color:var(--teal)">F1 proxy</strong> = harmonic mean of precision and recall.
+    </div>
+    <div class="eval-g" id="ev-g"></div>
+    <div class="d2">
+      <div class="sc"><div class="sch"><span class="sct">Forensic Check Coverage (12 checks)</span></div><div class="scb"><div id="ck-cov"></div></div></div>
+      <div class="sc"><div class="sch"><span class="sct">Alert Confidence Matrix</span></div><div class="scb"><div style="font-size:.62rem;color:var(--muted);margin-bottom:.72rem">Multi-flagged claims = corroborated by 2+ checks = higher confidence</div><div class="cf-g" id="cf-m"></div></div></div>
+    </div>
+    <div class="sc" style="margin-bottom:.9rem"><div class="sch"><span class="sct">Per-Node Model Performance</span></div><div class="tw" style="max-height:290px"><table><thead><tr><th>Node</th><th>Claims</th><th>FWA Rate</th><th>Award Rate</th><th>Tariff Gap</th><th>HIGH Alerts</th><th>MEDIUM Alerts</th><th>Checks Triggered</th><th>Rounds</th></tr></thead><tbody id="ev-nt"></tbody></table></div></div>
+    <div class="sc"><div class="sch"><span class="sct">Cross-Node Provider Corroboration — Increased Confidence</span></div><div class="scb"><div style="font-size:.66rem;color:var(--muted);margin-bottom:.62rem">Providers flagged independently by 2+ nodes — cross-corroboration significantly increases FWA confidence for referral</div><div id="crr"></div></div></div>
+  </div>
+
+  <!-- NODES -->
+  <div class="stp" id="sv-nd"><div class="sc"><div class="sch"><span class="sct">Node Performance Summary</span></div><div class="tw" style="max-height:500px"><table><thead><tr><th>Node</th><th>Claims</th><th>FWA Alerts</th><th>Outliers</th><th>Duplicates</th><th>Overpayments</th><th>Terminated</th><th>Award Rate</th><th>Tariff Gap</th><th>Rounds</th></tr></thead><tbody id="nd-t"></tbody></table></div></div></div>
+
+  <!-- OUTLIERS -->
+  <div class="stp" id="sv-ou"><div class="sc"><div class="sch"><span class="sct">Statistical Outliers (>3SD) — All Nodes</span></div><div class="tw" style="max-height:500px"><table><thead><tr><th>Fund</th><th>Claim #</th><th>SD Level</th><th>Provider</th><th>Member</th><th>Amount</th><th>Date</th><th>Service</th><th>Finding</th></tr></thead><tbody id="sou-t"></tbody></table></div></div></div>
+
+  <!-- DUPLICATES -->
+  <div class="stp" id="sv-du"><div class="sc"><div class="sch"><span class="sct">Duplicate Claims — All Nodes</span></div><div class="tw" style="max-height:500px"><table><thead><tr><th>Node</th><th>Claim #</th><th>Member</th><th>Provider</th><th>Service Code</th><th>Date</th><th>Amount</th><th>Count</th></tr></thead><tbody id="sdu-t"></tbody></table></div></div></div>
+
+  <!-- OVERPAYMENTS -->
+  <div class="stp" id="sv-op"><div class="sc"><div class="sch"><span class="sct">Overpayments — All Nodes</span></div><div class="tw" style="max-height:500px"><table><thead><tr><th>Fund</th><th>Claim #</th><th>Provider</th><th>Service</th><th>Claimed</th><th>Tariff</th><th>Awarded</th><th>Excess</th></tr></thead><tbody id="sop-t"></tbody></table></div></div></div>
+
+  <!-- FL ACTIVITY -->
+  <div class="stp" id="sv-fa">
+    <div class="sc" style="margin-bottom:.9rem"><div class="sch"><span class="sct">FedAvg Submission Activity</span></div><div class="scb"><div class="bars" id="fl-c" style="height:76px"></div><div class="barlbls" id="fl-cl" style="margin-top:.36rem"></div><div style="margin-top:.52rem;font-size:.6rem;color:var(--muted)" id="fl-l"></div></div></div>
+    <div class="sc"><div class="sch"><span class="sct">Privacy Architecture &amp; Compliance</span></div><div class="scb" style="font-size:.7rem;line-height:2;color:var(--text)">
+      ✅ <strong style="color:var(--green)">Raw data never leaves the client node.</strong> Only model weight summaries and anonymised alert metadata are transmitted to the central server.<br>
+      ✅ <strong style="color:var(--green)">FedAvg (McMahan et al. 2017)</strong> — averages model insights across all nodes without any individual claims data being shared.<br>
+      ✅ Compliant with <strong style="color:var(--amber)">Zimbabwe Data Protection Act</strong> and AHFoZ data governance standards.<br>
+      ✅ Cross-funder intelligence uses only <strong style="color:var(--teal)">provider IDs and claim counts</strong> — no member demographics, no clinical data, no amounts transmitted.<br>
+      ✅ This system implements the research proposed in <strong style="color:var(--blue)">AHFoZ Topic Proposal v2</strong>: Federated Time-Series Modelling for Collaborative Healthcare Fraud Detection.
+    </div></div>
+  </div>
+
+  <div class="stp" id="sv-qt">
+    <div id="srv-qt-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.7"></div>
+    <div class="tw" style="max-height:480px"><table><thead><tr>
+      <th>Fund</th><th>Claim #</th><th>Member</th><th>Provider</th><th>Service</th><th>Quantity</th><th>3SD Thresh</th><th>Flag</th>
+    </tr></thead><tbody id="sqt-t"></tbody></table></div>
+  </div>
+  <div class="stp" id="sv-pr">
+    <div id="srv-pr-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.7"></div>
+    <div class="tw" style="max-height:480px"><table><thead><tr>
+      <th>Fund</th><th>Provider</th><th>Lines</th><th>Claimed</th><th>Awarded</th><th>Award Rate</th><th>Tariff Gap</th><th>Avg/Line</th><th>Risk</th>
+    </tr></thead><tbody id="spr-t"></tbody></table></div>
+  </div>
+  <div class="stp" id="sv-dv">
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.75">Daily claim counts per provider across all funds.</div>
+    <div class="tw" style="max-height:480px"><table><thead><tr>
+      <th>Fund</th><th>Provider</th><th>Date</th><th>Claims</th><th>Total Amount</th><th>×Mean Daily</th><th>SD Level</th><th>Flag</th>
+    </tr></thead><tbody id="sdv-t"></tbody></table></div>
+  </div>
+  <div class="stp" id="sv-mb">
+    <div id="srv-mb-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.7"></div>
+    <div class="tw" style="max-height:480px"><table><thead><tr>
+      <th>Fund</th><th>Member ID</th><th>Lines</th><th>Total Claimed</th><th>Avg/Line</th><th>Terminated?</th><th>High Utiliser</th><th>Risk</th>
+    </tr></thead><tbody id="smb-t"></tbody></table></div>
+  </div>
+  <div class="stp" id="sv-lc">
+    <div id="srv-lc-i" style="font-size:.68rem;color:var(--muted);margin-bottom:.72rem;line-height:1.7"></div>
+    <div class="tw" style="max-height:480px"><table><thead><tr>
+      <th>Fund</th><th>Claim #</th><th>Member</th><th>Provider</th><th>Treatment Date</th><th>Captured Date</th><th>Lag Days</th><th>Amount</th><th>Risk</th>
+    </tr></thead><tbody id="slc-t"></tbody></table></div>
+  </div>
+</div>
+</section>
+
+
+<!-- SHARE MODAL -->
+<div class="mo" id="modal-share">
+  <div class="mb share-modal-box">
+    <div class="mi">🔗</div>
+    <div class="mt">Share with Client Nodes</div>
+    <div class="ms">Anyone who opens this link can upload their claims data and submit results to this central server — from any machine, any network.</div>
+    <div class="share-url-row">
+      <input type="text" class="share-url-input" id="share-url-text" readonly>
+      <button class="b bg" onclick="copyShareUrl()">📋 Copy</button>
+    </div>
+    <div class="share-sk-box">Session key: <strong id="share-sk" style="color:var(--teal);font-family:var(--mono)">—</strong><br>All nodes using this link share the same central dashboard.</div>
+    <div class="share-steps">
+      <ul>
+        <li>Copy the link above and send it to each medical aid society</li>
+        <li>They open the link in any browser on any device</li>
+        <li>They upload their claims CSV and run the analysis</li>
+        <li>They click <strong style="color:var(--amber)">📡 Submit to Server</strong></li>
+        <li>You open the Central Server dashboard to see all results</li>
+      </ul>
+    </div>
+    <button class="btn btn-gh" onclick="document.getElementById('modal-share').classList.remove('on')">Close</button>
+  </div>
+</div>
+
+
+<!-- SHARE MODAL -->
+<div class="mo" id="modal-share">
+  <div class="mb" style="max-width:560px">
+    <div class="mi">🔗</div>
+    <div class="mt">Share with Client Nodes</div>
+    <div class="ms">The Python server is the bridge. Once it's running, any machine on your network can submit results directly into your SQLite database.</div>
+    <div id="share-gen-status" style="font-size:.7rem;color:var(--muted);margin:.6rem 0;line-height:1.8;min-height:2rem"></div>
+    <div class="share-url-row">
+      <input type="text" class="share-url-input" id="share-url-text" readonly placeholder="Start python ahfoz_server.py to get the URL…">
+      <button class="b bg" onclick="copyShareUrl()">📋 Copy</button>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.8rem 1rem;margin-top:.7rem;font-size:.7rem;line-height:2;color:var(--muted)">
+      <strong style="color:var(--white)">Step-by-step:</strong><br>
+      <span style="color:var(--green)">1.</span> Run <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--mono);color:var(--teal)">python ahfoz_server.py</code> in VS Code terminal<br>
+      <span style="color:var(--green)">2.</span> Terminal shows: <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--mono);color:var(--amber)">NODES: http://192.168.x.x:5000</code><br>
+      <span style="color:var(--green)">3.</span> Copy that URL and send it via WhatsApp / email to each node<br>
+      <span style="color:var(--green)">4.</span> Node opens URL in their browser → uploads CSV → Run → Submit<br>
+      <span style="color:var(--green)">5.</span> You click <strong style="color:var(--green)">☁ Sync</strong> on Central Server → all their results appear<br>
+      <span style="color:var(--muted);font-size:.62rem">All data goes into SQLite (ahfoz_data.db) on your machine. No internet needed.</span>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem">
+      <button class="btn btn-g" onclick="showShareModal()" style="flex:1">↻ Refresh URL</button>
+      <button class="btn btn-gh" onclick="document.getElementById('modal-share').classList.remove('on')" style="flex:0.5;margin-top:0">Close</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+<div class="flash" id="fmsg"></div>
+
+
+
+
+
+<script>
+// AHFoZ Federated Fraud Detection v6
+// IndexedDB storage · AES-256-GCM encrypted exports · Full server
+// AHFoZ Federated Fraud Detection v6
+// IndexedDB storage · AES-256-GCM encrypted exports · Full server detail tabs
+const PW = "ahfoz2024";
+const DB_NAME = "AHFoZ_v6";
+
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+//  SUPABASE DIRECT REST — works from any browser on any network
+//  Service role key embedded — browser makes calls directly
+//  Data is AES-256-GCM encrypted before leaving the node
+// ════════════════════════════════════════════════════════════════
+const SUPA_URL = 'https://fpshxkursstpvpsbotpq.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwc2h4a3Vyc3N0cHZwc2JvdHBxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY0NjAzNSwiZXhwIjoyMDkzMjIyMDM1fQ.9ziZjGU0PSe23eIYHkyL9SioK69O_vDw7iGNZ7bAUxA';
+let supaReady = false;
+
+async function supaQuery(method, path, body=null, extraHeaders={}) {
+  try {
+    const headers = {
+      'Content-Type':  'application/json',
+      'apikey':         SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      ...extraHeaders,
+    };
+    const opts = { method, headers };
+    if (body !== null) opts.body = JSON.stringify(body);
+    // Use Promise.race for timeout — no AbortSignal (avoids cloning error)
+    const fetchPromise = fetch(SUPA_URL + '/rest/v1/' + path, opts);
+    const timeoutPromise = new Promise((_,rej) =>
+      setTimeout(() => rej(new Error('Supabase timeout after 15s')), 15000)
+    );
+    const r = await Promise.race([fetchPromise, timeoutPromise]);
+    if (!r.ok) {
+      const txt = await r.text().catch(()=>'');
+      console.warn('Supabase', method, r.status, txt.substring(0,100));
+      return null;
+    }
+    const txt = await r.text();
+    return txt ? JSON.parse(txt) : [];
+  } catch(e) {
+    console.warn('Supabase error:', e.message);
+    return null;
+  }
+}
+
+async function supaSubmit(payload) {
+  if (!supaReady) return false;
+  try {
+    const idMat = 'AHFOZ_V8:' + (payload.node_name||'') + ':' + (payload.submitted_at||'');
+    const idBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(idMat));
+    const id = Array.from(new Uint8Array(idBytes)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const blob = await aesEncrypt(payload, PW);
+    const r = await supaQuery('POST', 'ahfoz_v8', {id, blob}, {
+      'Prefer': 'resolution=merge-duplicates,return=minimal'
+    });
+    return r !== null;
+  } catch(e) { console.warn('supaSubmit error:', e.message); return false; }
+}
+
+async function supaFetchAll() {
+  if (!supaReady) return null;
+  const rows = await supaQuery('GET', 'ahfoz_v8?select=blob&order=id.asc');
+  if (!Array.isArray(rows)) return null;
+  const results = [];
+  for (const row of rows) {
+    try { results.push(await aesDecrypt(row.blob, PW)); }
+    catch(e) { console.warn('Decrypt failed:', e.message); }
+  }
+  return results;
+}
+
+async function supaDeleteAll() {
+  if (!supaReady) return false;
+  const r = await supaQuery('DELETE', 'ahfoz_v8?id=neq.____never____');
+  return r !== null;
+}
+
+function updateSyncStatus(state, detail='') {
+  const msgs = {
+    'connected':  ['🟢 Cloud connected — real-time sync active', '#c4962a'],
+    'connecting': ['⏳ Connecting to Supabase...', '#446480'],
+    'offline':    ['🔴 Cloud offline — check internet', '#e84060'],
+    'timeout':    ['🔴 Connection timed out — check internet', '#e84060'],
+    'error':      ['🔴 Connection error — retry', '#e84060'],
+  };
+  const [msg, col] = msgs[state] || msgs['error'];
+  const stEl = document.getElementById('sync-st');
+  if (stEl) { stEl.textContent = msg + (detail?' · '+detail:''); stEl.style.color = col; }
+}
+
+async function initSupabase() {
+  updateSyncStatus('connecting');
+  try {
+    // Test connection with a simple ping
+    const r = await Promise.race([
+      supaQuery('GET', 'ahfoz_v8?select=id&limit=1'),
+      new Promise(res => setTimeout(() => res('timeout'), 10000))
+    ]);
+    if (r === 'timeout') { supaReady=false; updateSyncStatus('timeout'); return; }
+    if (r === null) { supaReady=false; updateSyncStatus('offline'); return; }
+    supaReady = true;
+    updateSyncStatus('connected');
+  } catch(e) {
+    supaReady = false;
+    updateSyncStatus('offline');
+  }
+}
+
+
+window.addEventListener('load', () => {
+  document.getElementById('nid').value = nodeId;
+  // Run cloud connection in background — never blocks the UI
+  setTimeout(() => initSupabase(), 100);
+});
+
+
+
+let cData=[], aRes=null;
+let nodeId="NODE_"+Math.random().toString(36).substr(2,6).toUpperCase();
+
+// ── IndexedDB ─────────────────────────────────────────────────
+function openDB(){
+  return new Promise((res,rej)=>{
+    const q=indexedDB.open(DB_NAME,1);
+    q.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('submissions')){const s=db.createObjectStore('submissions',{keyPath:'id',autoIncrement:true});s.createIndex('node_name','node_name',{unique:false});}};
+    q.onsuccess=e=>res(e.target.result);
+    q.onerror=e=>rej(e.target.error);
+  });
+}
+async function dbGetAll(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('submissions','readonly');const q=tx.objectStore('submissions').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error);});}
+async function dbPut(r){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('submissions','readwrite');const q=tx.objectStore('submissions').put(r);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function dbClear(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('submissions','readwrite');const q=tx.objectStore('submissions').clear();q.onsuccess=()=>res();q.onerror=()=>rej(q.error);});}
+
+// ── AES-256-GCM ───────────────────────────────────────────────
+async function aesKey(pw){
+  const enc=new TextEncoder();
+  const raw=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('AHFoZ_SALT_2026'),iterations:100000,hash:'SHA-256'},raw,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function aesEncrypt(obj,pw){
+  const key = await aesKey(pw);
+  const iv  = crypto.getRandomValues(new Uint8Array(12));
+  const ct  = await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  const out = new Uint8Array(iv.length + ct.byteLength);
+  out.set(iv, 0);
+  out.set(new Uint8Array(ct), iv.length);
+  // Use chunked approach — spread operator (...out) crashes on large arrays
+  let str = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < out.length; i += CHUNK) {
+    str += String.fromCharCode(...out.subarray(i, i + CHUNK));
+  }
+  return btoa(str);
+}
+async function aesDecrypt(b64,pw){
+  const key   = await aesKey(pw);
+  const str   = atob(b64);
+  // Build bytes without spread — avoids stack overflow on large payloads
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+  const plain = await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+// ── Navigation ────────────────────────────────────────────────
+const show=id=>{document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');};
+const goHome=()=>show('vl');
+const lockHome=()=>show('vl');
+function goCli(){document.getElementById('nid').value=nodeId;show('vc');}
+function showPw(){document.getElementById('mpw').classList.add('on');setTimeout(()=>document.getElementById('pw-in').focus(),80);}
+function closePw(){document.getElementById('mpw').classList.remove('on');}
+function chkPw(){
+  if(document.getElementById('pw-in').value===PW){closePw();show('vs');rDash();}
+  else{document.getElementById('pw-err').classList.add('on');document.getElementById('pw-in').value='';document.getElementById('pw-in').focus();}
+}
+function cTab(btn,id){document.querySelectorAll('.tbb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));btn.classList.add('on');document.getElementById(id).classList.add('on');}
+function sTab(btn,id){document.querySelectorAll('.stb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.stp').forEach(p=>p.classList.remove('on'));btn.classList.add('on');document.getElementById(id).classList.add('on');}
+
+// ── Utilities ─────────────────────────────────────────────────
+const Gn=(r,k)=>{const v=r[k];return(v===undefined||v===null||v===''||isNaN(v))?0:parseFloat(v);};
+const Gs=(r,k)=>String(r[k]!==undefined?r[k]:'');
+const F=v=>(isNaN(v)||v===null)?'—':'$'+parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const Pct=v=>(isNaN(v)||v===null)?'—':(v*100).toFixed(1)+'%';
+const now=()=>new Date().toLocaleTimeString();
+function flash(msg,ok=true){const e=document.getElementById('fmsg');e.textContent=msg;e.className='flash '+(ok===false?'f-er':'f-ok');e.classList.add('on');setTimeout(()=>e.classList.remove('on'),5000);}
+function emptyRow(n){return`<tr><td colspan="${n}" style="text-align:center;color:var(--green);padding:1.5rem">✅ No items</td></tr>`;}
+function barChart(id,bars){const el=document.getElementById(id);if(!el)return;el.innerHTML=bars.map(([h,c])=>`<div class="bar" style="height:${Math.max(3,h)}px;background:${c}"></div>`).join('');}
+
+// ── Column matching ───────────────────────────────────────────
+const COLS={
+  claim_number:["claim_number","claim_line_number","claimnumber","claim_no","claim#","claim_id","invoice_number","clm_num"],
+  service_code:["service_code","servicecode","tariff_code","procedure_code","code","svc_code"],
+  service_desc:["service_code_description","service_description","service_desc","description","service_name","service"],
+  quantity:["quantity","qty","units","qty_billed","quantity_billed","unit_count"],
+  status:["status","claim_status","processing_status","adjudication_status","claim_state"],
+  claimed:["claimed_amount","billed_amount","claim_amount","amount_claimed","amount_billed","gross_amount","amount","total_amount","billed","claimed"],
+  tariff:["tariff_awarded_amount","tariff_awarded","tariff_amount","allowed_amount","tariff","schedule_amount","benefit_amount","approved_amount"],
+  awarded:["final_award","awarded_amount","amount_awarded","paid_amount","amount_paid","net_amount","amount_approved","reimbursed_amount"],
+  valstat:["validation_status","validation","adjudication_result","rejection_reason","adjudication_code","denial_reason"],
+  member:["membership_number","member_id","member","memberid","member_number","patient_id","subscriber_id","beneficiary_id","mem_no"],
+  tdate:["treatment_date","service_date","date_of_service","treatment_dt","service_dt","procedure_date","date","dos","visit_date"],
+  cdate:["captured_date","capture_date","entry_date","received_date","submission_date","claim_date","date_received"],
+  provider:["provider_id","provider","providerid","provider_number","practice_number","billing_provider","physician_id","prov_no"],
+  scheme:["scheme_id","scheme","schemeid","plan_id","health_plan","fund_id","insurance_id","medical_aid"],
+  ctype:["claim_type","type","submission_type","channel","submission_channel","claim_channel"],
+};
+function matchColumns(headers){
+  const map={},unmatched=[];
+  const normed=headers.map(h=>({orig:h,n:h.toLowerCase().replace(/[\s\-\.\(\)\/\\]+/g,'_').replace(/[^a-z0-9_]/g,'')}));
+  for(const[canon,aliases]of Object.entries(COLS)){for(const{orig,n}of normed){if(aliases.includes(n)&&!map[canon]){map[canon]=orig;break;}}}
+  normed.forEach(({orig})=>{if(!Object.values(map).includes(orig))unmatched.push(orig);});
+  return{map,unmatched};
+}
+function showColMap(map,unmatched){
+  const matched=Object.entries(map);const missing=Object.keys(COLS).filter(k=>!map[k]);
+  document.getElementById('cmd').innerHTML=`<div class="cmap"><div class="cmap-t">✓ ${matched.length}/${Object.keys(COLS).length} columns detected</div><div class="cmap-g">${matched.map(([c,o])=>`<span class="chip chip-ok">✓ ${c}←"${o}"</span>`).join('')}${missing.map(m=>`<span class="chip chip-mis">✗ ${m}</span>`).join('')}</div></div>`;
+  document.getElementById('cmd').style.display='block';
+  document.getElementById('c-cols').textContent=matched.length+'/'+Object.keys(COLS).length;
+}
+
+// ── File handling ─────────────────────────────────────────────
+const dze=document.getElementById('dz');
+dze.addEventListener('dragover',e=>{e.preventDefault();dze.classList.add('ov');});
+dze.addEventListener('dragleave',()=>dze.classList.remove('ov'));
+dze.addEventListener('drop',e=>{e.preventDefault();dze.classList.remove('ov');if(e.dataTransfer.files[0])parseCSV(e.dataTransfer.files[0]);});
+function handleFile(e){if(e.target.files[0])parseCSV(e.target.files[0]);}
+
+function parseCSV(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    const lines=e.target.result.trim().split('\n').filter(l=>l.trim());
+    if(lines.length<2){alert("CSV needs at least 2 rows.");return;}
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+    const{map}=matchColumns(headers);showColMap(map,[]);
+    const recs=[];
+    for(let i=1;i<lines.length;i++){
+      const vals=csvSplit(lines[i]);const rec={};
+      for(const[canon,origCol]of Object.entries(map)){const idx=headers.indexOf(origCol);rec[canon]=idx>=0?(vals[idx]||'').trim().replace(/^"|"$/g,''):'';}
+      if(!rec.claim_number)rec.claim_number=`CLM${String(i).padStart(5,'0')}`;
+      ['claimed','tariff','awarded','quantity'].forEach(k=>{rec[k]=parseFloat(rec[k])||0;});
+      recs.push(rec);
+    }
+    setData(recs);
+  };r.readAsText(file);
+}
+function csvSplit(line){const r=[];let c='',q=false;for(let i=0;i<line.length;i++){if(line[i]==='"')q=!q;else if(line[i]===','&&!q){r.push(c);c='';}else c+=line[i];}r.push(c);return r;}
+
+function genData(n){
+  const provs=['978','977','1131','1132','1141','982','1400','2062','1198','1017','991'];
+  const mems=Array.from({length:80},(_,i)=>`M-${(230000+i*1137).toString().padStart(12,'0')}`);
+  const svcs=[['90050','INITIAL CONSULTATION'],['90051','FOLLOW-UP CONSULT'],['89051','FULL BLOOD COUNT'],['5300','SPECTACLES'],['59500','C-SECTION'],['1001','OMEPRAZOLE 20MG'],['2291','OPD CONSULT'],['90030','AFTER HOURS'],['A9999','DRUGS EMF']];
+  const recs=[];
+  for(let i=0;i<n;i++){
+    const fraud=Math.random()<.13,dup=Math.random()<.04,term=Math.random()<.006;
+    const p=provs[Math.floor(Math.random()*provs.length)],m=mems[Math.floor(Math.random()*mems.length)],sv=svcs[Math.floor(Math.random()*svcs.length)];
+    const dAgo=Math.floor(Math.random()*365),td=new Date(Date.now()-dAgo*86400000);
+    const lag=fraud?Math.floor(Math.random()*900+5):Math.floor(Math.random()*55),cd=new Date(td.getTime()+lag*86400000);
+    const fdt=d=>d.toISOString().split('T')[0];
+    let cl,ta,fa,qty;
+    if(fraud){cl=+(5000+Math.random()*45000).toFixed(2);ta=+(cl*.48+Math.random()*800).toFixed(2);fa=+(ta*(1+Math.random()*.12)).toFixed(2);qty=Math.floor(Math.random()<.3?800+Math.random()*11200:1+Math.random()*4);}
+    else{cl=+(100+Math.random()*3000).toFixed(2);ta=+(cl*(.75+Math.random()*.2)).toFixed(2);fa=+(Math.min(ta,cl)*(.9+Math.random()*.1)).toFixed(2);qty=Math.floor(1+Math.random()*4);}
+    const rec={claim_number:`CLM${String(i+1).padStart(5,'0')}`,service_code:sv[0],service_desc:sv[1],quantity:qty,status:term||fraud?(Math.random()>.5?'Invoiced':'Rejected'):'Invoiced',claimed:cl,tariff:ta,awarded:fa,valstat:term?'Treatment was done on a terminated member':'Passed',member:m,tdate:fdt(td),cdate:fdt(cd),provider:p,scheme:'17',ctype:Math.random()>.35?'EDI':'Paper'};
+    recs.push(rec);if(dup&&i>0)recs.push({...rec,claim_number:rec.claim_number+'_DUP'});
+  }
+  showColMap(Object.fromEntries(Object.keys(COLS).map(k=>[k,k])),[]);setData(recs);
+}
+function setData(r){cData=r;document.getElementById('c-rec').textContent=r.length;document.getElementById('lct').textContent=r.length;document.getElementById('lm').style.display='block';document.getElementById('ac').style.display='block';document.getElementById('c-st').textContent='Data Loaded';}
+
+// ── Analysis Engine ───────────────────────────────────────────
+let runAAborted = false;
+
+function cancelRunA() {
+  runAAborted = true;
+  document.getElementById('br').disabled = false;
+  document.getElementById('pgw').style.display = 'none';
+  document.getElementById('lb').innerHTML = '<div class="ll wn">// Analysis cancelled — ready for new dataset</div>';
+  const cancelBtn = document.getElementById('btn-cancel');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  flash('Analysis cancelled — load a new CSV to start again');
+}
+
+function runA(){
+  if(!cData.length){alert("Load data first.");return;}
+  runAAborted = false;
+  document.getElementById('br').disabled=true;
+  document.getElementById('bs').style.display='none';
+  document.getElementById('pgw').style.display='block';
+  const lb=document.getElementById('logbox');lb.innerHTML='';
+  const nodeName=document.getElementById('nn').value.trim()||'Unknown Node';
+  const L=(msg,cls='')=>{lb.innerHTML+=`<div class="ll ${cls}">[${now()}] ${msg}</div>`;lb.scrollTop=lb.scrollHeight;};
+  const Pr=(p,l)=>{document.getElementById('pgb').style.width=p+'%';document.getElementById('pgl').textContent=l;};
+  let step=0;
+  const steps=[
+    ()=>{Pr(5,'Headline stats…');L('▶ MOD3 Ch1 — '+cData.length+' records','in');},
+    ()=>{Pr(13,'Outlier thresholds…');L('▶ MOD3 Ch4 — Mean±2SD, Mean±3SD');},
+    ()=>{Pr(21,'Outlier detection…');},
+    ()=>{Pr(30,'Duplicate detection…');L('▶ MOD4 Ch4 — member+date+svc+provider','in');},
+    ()=>{Pr(38,'Overpayments…');L('▶ MOD4 Ch3 — final_award vs tariff');},
+    ()=>{Pr(46,'Quantity abuse…');L('▶ MOD4 Ch5 — Mean+3SD on units');},
+    ()=>{Pr(53,'Terminated members…');L('▶ MOD3 Ch2 — validation_status','in');},
+    ()=>{Pr(60,'Capture lag…');L('▶ MOD3 Ch7 — >90d breach');},
+    ()=>{Pr(67,'Provider profiling…');L('▶ MOD3 Ch3 + MOD4 Ch1','in');},
+    ()=>{Pr(74,'Daily volumes…');L('▶ Daily counts per provider','fl2');},
+    ()=>{Pr(81,'Upcoding…');L('▶ MOD4 Ch5 — same-day multi-provider');},
+    ()=>{Pr(89,'FWA scoring…');L('▶ MOD4 Glossary — composite','fl2');},
+    ()=>{Pr(95,'Finalising…');},
+    ()=>{
+      Pr(100,'Complete ✓');
+      const R=compute(cData,nodeName);aRes=R;
+      renderClient(R);updateSidebar(R);
+      L(`✅ Done — ${R.fwa.length} FWA alerts`,'ok');
+      if(R.out3.length)L(`⚠ ${R.out3.length} outliers >3SD`,'wn');
+      if(R.dups.length)L(`⚠ ${R.dups.length} duplicates`,'wn');
+      if(R.term.length)L(`🚨 ${R.term.length} TERMINATED!`,'er');
+      document.getElementById('br').disabled=false;
+      document.getElementById('bs').style.display='inline-flex';
+      document.getElementById('bexp').style.display='inline-flex';
+      document.getElementById('c-st').textContent='Analysis Complete';
+      document.getElementById('ctabs').style.display='flex';
+    }
+  ];
+  // Show cancel button while running
+  const cancelBtn = document.getElementById('btn-cancel');
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+  const next=()=>{
+    if (runAAborted) return;
+    if(step<steps.length){steps[step]();step++;setTimeout(next,240+Math.random()*140);}
+    else { const cb=document.getElementById('btn-cancel'); if(cb)cb.style.display='none'; }
+  };next();
+}
+
+function compute(data,nodeName){
+  const R={nodeName,nodeId,n:data.length,claimed:0,tariff:0,awarded:0,ar:0,par:0,tc:0,rej:0,
+    out2:[],out3:[],dups:[],overpay:[],qty:[],term:[],late:[],provs:[],mems:[],daily:[],upcodes:[],fwa:[],
+    metrics:{},ts:new Date().toISOString()};
+  data.forEach(r=>{R.claimed+=Gn(r,'claimed');R.tariff+=Gn(r,'tariff');R.awarded+=Gn(r,'awarded');if(Gs(r,'status').toLowerCase().includes('reject'))R.rej++;});
+  R.ar=R.claimed>0?R.awarded/R.claimed:0;
+  R.par=R.tariff>0?R.awarded/R.tariff:0;
+  R.tc=R.claimed>0?R.tariff/R.claimed:0;
+  R.tariffGap=R.awarded-R.tariff;
+  const amts=data.map(r=>Gn(r,'claimed')).filter(v=>v>0);
+  const mn=amts.reduce((s,v)=>s+v,0)/Math.max(amts.length,1);
+  const sd=Math.sqrt(amts.reduce((s,v)=>s+(v-mn)**2,0)/Math.max(amts.length,1));
+  const th2=mn+2*sd,th3=mn+3*sd;
+  R.metrics={mn,sd,th2,th3};
+  // Outliers
+  data.forEach(r=>{const a=Gn(r,'claimed');if(a>th2){const e={claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',amt:a,date:(Gs(r,'tdate')||'').substring(0,10),service:(Gs(r,'service_desc')||Gs(r,'service_code')||'—').substring(0,48),level:a>th3?'3SD':'2SD',finding:a>th3?'HIGH VALUE — VERIFY AUTH':'ABOVE NORMAL'};R.out2.push(e);if(a>th3)R.out3.push(e);}});
+  // Dups
+  const dm={};data.forEach(r=>{const k=[Gs(r,'member'),(Gs(r,'tdate')||'').substring(0,10),Gs(r,'service_code'),Gs(r,'provider')].join('||');if(!dm[k])dm[k]=[];dm[k].push(r);});
+  Object.values(dm).filter(a=>a.length>1).forEach(arr=>arr.forEach(r=>R.dups.push({claim:Gs(r,'claim_number')||'—',member:Gs(r,'member')||'—',provider:Gs(r,'provider')||'—',svc:Gs(r,'service_code')||'—',date:(Gs(r,'tdate')||'').substring(0,10),amt:Gn(r,'claimed'),count:arr.length})));
+  // Overpayments
+  data.forEach(r=>{const fa=Gn(r,'awarded'),ta=Gn(r,'tariff');if(fa>0&&ta>0&&fa>ta)R.overpay.push({claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',service:(Gs(r,'service_desc')||Gs(r,'service_code')||'—').substring(0,38),claimed:Gn(r,'claimed'),tariff:ta,awarded:fa,excess:+(fa-ta).toFixed(2)});if(Gn(r,'claimed')>ta&&ta>0){const pct=+(((Gn(r,'claimed')-ta)/ta)*100).toFixed(1);R.fwa.push({severity:'MEDIUM',check:'ABOVE_TARIFF',claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',svc:Gs(r,'service_code')||'—',amt:Gn(r,'claimed'),score:pct,finding:`Above-tariff: ${F(Gn(r,'claimed'))} vs tariff ${F(ta)} (+${pct}%)`});}});
+  // Qty
+  const qtys=data.map(r=>Gn(r,'quantity')).filter(v=>v>0);const qm=qtys.reduce((s,v)=>s+v,0)/Math.max(qtys.length,1);const qsd=Math.sqrt(qtys.reduce((s,v)=>s+(v-qm)**2,0)/Math.max(qtys.length,1));const qt3=qm+3*qsd;
+  data.forEach(r=>{const q=Gn(r,'quantity');if(q>qt3&&q>0){R.qty.push({claim:Gs(r,'claim_number')||'—',member:Gs(r,'member')||'—',provider:Gs(r,'provider')||'—',service:(Gs(r,'service_desc')||Gs(r,'service_code')||'—').substring(0,38),qty:q,qm:+qm.toFixed(1),qt:+qt3.toFixed(1)});R.fwa.push({severity:'HIGH',check:'QTY_ABUSE',claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',svc:Gs(r,'service_code')||'—',amt:Gn(r,'claimed'),score:+(q/qm).toFixed(1),finding:`Qty abuse: ${Math.round(q)} units (3SD: ${Math.round(qt3)}, mean: ${qm.toFixed(1)})`});}});
+  // Terminated
+  data.forEach(r=>{const vs=Gs(r,'valstat').toLowerCase();if(vs.includes('terminat')||vs.includes('suspend')){R.term.push({claim:Gs(r,'claim_number')||'—',member:Gs(r,'member')||'—',provider:Gs(r,'provider')||'—',amt:Gn(r,'claimed'),date:(Gs(r,'tdate')||'').substring(0,10),reason:Gs(r,'valstat')});R.fwa.push({severity:'HIGH',check:'TERMINATED',claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',svc:Gs(r,'service_code')||'—',amt:Gn(r,'claimed'),score:10,finding:`Claim for ${vs.includes('terminat')?'TERMINATED':'SUSPENDED'} member — NOT payable`});}});
+  // Late
+  data.forEach(r=>{const td=Gs(r,'tdate'),cd=Gs(r,'cdate');if(td&&cd&&td.length>=8&&cd.length>=8){const lag=Math.floor((new Date(cd)-new Date(td))/86400000);if(!isNaN(lag)&&lag>90){const risk=lag>365?'EXTREME':lag>180?'HIGH':'MODERATE';R.late.push({claim:Gs(r,'claim_number')||'—',member:Gs(r,'member')||'—',provider:Gs(r,'provider')||'—',td:td.substring(0,10),cd:cd.substring(0,10),lag,amt:Gn(r,'claimed'),risk});if(lag>180)R.fwa.push({severity:lag>365?'HIGH':'MEDIUM',check:'LATE_CLAIM',claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',svc:Gs(r,'service_code')||'—',amt:Gn(r,'claimed'),score:lag,finding:`Capture lag ${lag}d — ${risk} breach`});}}});
+  // Providers
+  const pm={};data.forEach(r=>{const pid=Gs(r,'provider')||'?';if(!pm[pid])pm[pid]={pid,l:0,cl:0,ta:0,aw:0};pm[pid].l++;pm[pid].cl+=Gn(r,'claimed');pm[pid].ta+=Gn(r,'tariff');pm[pid].aw+=Gn(r,'awarded');});
+  R.provs=Object.values(pm).map(p=>{const ar=p.cl>0?p.aw/p.cl:0;const risk=ar<0.75?'HIGH':ar<0.85?'MEDIUM':'LOW';if(risk!=='LOW')R.fwa.push({severity:risk,check:'ABOVE_TARIFF',claim:'—',provider:p.pid,member:'—',svc:'—',amt:+p.cl.toFixed(2),score:+(ar*100).toFixed(1),finding:`Provider ${p.pid} award rate ${(ar*100).toFixed(1)}%`});return{pid:p.pid,lines:p.l,claimed:+p.cl.toFixed(2),tariff:+p.ta.toFixed(2),awarded:+p.aw.toFixed(2),awardRate:+ar.toFixed(4),tariffGap:+(p.aw-p.ta).toFixed(2),avg:+(p.l>0?p.cl/p.l:0).toFixed(2),risk};}).sort((a,b)=>b.claimed-a.claimed);
+  // Members
+  const mm={};data.forEach(r=>{const mid=Gs(r,'member')||'?';if(!mm[mid])mm[mid]={mid,l:0,cl:0,term:false};mm[mid].l++;mm[mid].cl+=Gn(r,'claimed');const vs=Gs(r,'valstat').toLowerCase();if(vs.includes('terminat')||vs.includes('suspend'))mm[mid].term=true;});
+  const mls=Object.values(mm).map(m=>m.l);const mMn=mls.reduce((s,v)=>s+v,0)/Math.max(mls.length,1);const mTh=mMn+2*Math.sqrt(mls.reduce((s,v)=>s+(v-mMn)**2,0)/Math.max(mls.length,1));
+  R.mems=Object.values(mm).map(m=>{const hi=m.l>mTh;if(hi)R.fwa.push({severity:'MEDIUM',check:'HIGH_UTILISER',claim:'—',provider:'—',member:m.mid,svc:'—',amt:+m.cl.toFixed(2),score:+(m.l/mMn).toFixed(1),finding:`High utiliser: ${m.l} lines (${(m.l/mMn).toFixed(1)}× mean ${mMn.toFixed(0)})`});return{mid:m.mid,lines:m.l,claimed:+m.cl.toFixed(2),avg:+(m.l>0?m.cl/m.l:0).toFixed(2),terminated:m.term,highUtil:hi};}).sort((a,b)=>b.claimed-a.claimed);
+  // Daily volumes
+  const pdm={};data.forEach(r=>{const pid=Gs(r,'provider')||'?';const dt=(Gs(r,'tdate')||'').substring(0,10)||'?';const k=pid+'||'+dt;if(!pdm[k])pdm[k]={provider:pid,date:dt,count:0,total:0};pdm[k].count++;pdm[k].total+=Gn(r,'claimed');});
+  const pdg={};Object.values(pdm).forEach(e=>{if(!pdg[e.provider])pdg[e.provider]=[];pdg[e.provider].push(e.count);});
+  const pdM={};Object.entries(pdg).forEach(([pid,arr])=>{const m=arr.reduce((s,v)=>s+v,0)/arr.length;const s2=Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);pdM[pid]={mean:m,sd:s2};});
+  R.daily=Object.values(pdm).map(e=>{const st=pdM[e.provider]||{mean:e.count,sd:0};const sdL=st.sd>0?(e.count-st.mean)/st.sd:0;const ratio=st.mean>0?e.count/st.mean:1;const flag=sdL>2?'HIGH':sdL>1.5?'MEDIUM':null;if(flag)R.fwa.push({severity:flag,check:'DAILY_VOLUME',claim:'—',provider:e.provider,member:'—',svc:'—',amt:+e.total.toFixed(2),score:+ratio.toFixed(1),finding:`Provider ${e.provider}: ${e.count} claims (${ratio.toFixed(1)}× mean ${st.mean.toFixed(1)})`});return{...e,meanDaily:+st.mean.toFixed(1),sdLevel:+sdL.toFixed(2),flag};}).sort((a,b)=>b.count-a.count);
+  // Upcoding
+  const ucm={};data.forEach(r=>{if(['90050','90051','90030','2291'].includes(Gs(r,'service_code'))){const k=Gs(r,'member')+'||'+(Gs(r,'tdate')||'').substring(0,10);if(!ucm[k])ucm[k]=[];ucm[k].push(r);}});
+  Object.values(ucm).filter(a=>a.length>1).forEach(arr=>{if([...new Set(arr.map(r=>Gs(r,'provider')))].length>1)arr.forEach(r=>{R.upcodes.push({claim:Gs(r,'claim_number'),member:Gs(r,'member'),provider:Gs(r,'provider'),svc:Gs(r,'service_code'),date:(Gs(r,'tdate')||'').substring(0,10),count:arr.length});R.fwa.push({severity:'MEDIUM',check:'UPCODING',claim:Gs(r,'claim_number')||'—',provider:Gs(r,'provider')||'—',member:Gs(r,'member')||'—',svc:Gs(r,'service_code')||'—',amt:Gn(r,'claimed'),score:arr.length,finding:`Same-day multi-provider consult (${arr.length}×)`});});});
+  // Outliers + dups → FWA
+  R.out3.forEach(o=>R.fwa.push({severity:'HIGH',check:'OUTLIER',claim:o.claim,provider:o.provider,member:o.member,svc:'—',amt:o.amt,score:+(o.amt/th3).toFixed(2),finding:`${F(o.amt)} exceeds 3SD threshold ${F(th3)}`}));
+  const dds=new Set();R.dups.forEach(d=>{const k=d.member+'||'+d.date+'||'+d.svc;if(!dds.has(k)){dds.add(k);R.fwa.push({severity:'MEDIUM',check:'DUPLICATE',claim:d.claim,provider:d.provider,member:d.member,svc:d.svc,amt:d.amt,score:d.count,finding:`Duplicate: ${d.count} lines — same member+date+service`});}});
+  const dd=new Map();R.fwa=R.fwa.filter(a=>{const k=a.check+'||'+a.claim+'||'+a.provider;if(dd.has(k))return false;dd.set(k,true);return true;});
+  R.fwa.sort((a,b)=>({'HIGH':0,'MEDIUM':1,'LOW':2}[a.severity]||3)-({'HIGH':0,'MEDIUM':1,'LOW':2}[b.severity]||3));
+  return R;
+}
+
+// ── Export (AES-encrypted) ────────────────────────────────────
+// ── Build payload (shared by submit and export) ─────────────
+async function buildPayload(nn) {
+  const detail = {
+    out2:aRes.out2||[], out3:aRes.out3||[], dups:aRes.dups||[],
+    overpay:aRes.overpay||[], qty:aRes.qty||[], term:aRes.term||[],
+    late:aRes.late||[], provs:aRes.provs||[], mems:aRes.mems||[],
+    daily:aRes.daily||[], fwa:aRes.fwa||[],
+  };
+  const encrypted = await aesEncrypt(detail, PW);
+  return {
+    _ahfoz_version: 7,
+    _note: 'Detail AES-256-GCM encrypted. Readable only on Central Server.',
+    node_id:  nodeId,
+    node_name: nn,
+    submitted_at: new Date().toISOString(),
+    aggregate: {
+      total_claims:     aRes.n,
+      total_claimed:    +aRes.claimed.toFixed(2),
+      total_awarded:    +aRes.awarded.toFixed(2),
+      award_rate:       +aRes.ar.toFixed(4),
+      paid_vs_schedule: +(aRes.par||0).toFixed(4),
+      tariff_gap:       +aRes.tariffGap.toFixed(2),
+      rejection_count:  aRes.rej,
+      total_fwa_alerts: (aRes.fwa||[]).length,
+      high_severity:    (aRes.fwa||[]).filter(a=>a.severity==='HIGH').length,
+      medium_severity:  (aRes.fwa||[]).filter(a=>a.severity==='MEDIUM').length,
+    },
+    metrics: { ...aRes.metrics, tariffGap: aRes.tariffGap, dups: aRes.dups.length, out3: aRes.out3.length, term: aRes.term.length, late: aRes.late.length, qty: aRes.qty.length },
+    check_aggregates: Object.entries(
+      (aRes.fwa||[]).reduce((m,a)=>{
+        if(!m[a.check])m[a.check]={count:0,high:0,med:0,amt:0};
+        m[a.check].count++;
+        if(a.severity==='HIGH')   m[a.check].high++;
+        if(a.severity==='MEDIUM') m[a.check].med++;
+        m[a.check].amt += a.amt||0;
+        return m;
+      },{})
+    ).map(([check,v])=>({check, flagged_count:v.count, severity_high:v.high, severity_med:v.med, total_amount:+v.amt.toFixed(2)})),
+    encrypted_detail: encrypted,
+  };
+}
+
+// ── SUBMIT TO CLOUD — what the node button does ──────────────
+async function submitToCloud() {
+  if (!aRes) { flash('Run the analysis first', false); return; }
+  const nn  = document.getElementById('nn').value.trim() || 'Unknown Node';
+  const btn = document.getElementById('bs');
+  if (btn) { btn.textContent = '⏳ Encrypting & Uploading…'; btn.disabled = true; }
+  try {
+    // Hard 30-second timeout on the entire submit
+    const submitWithTimeout = async () => {
+      const payload = await buildPayload(nn);
+      if (!supaReady) {
+        flash('⚠ Not connected to cloud — check internet connection', false);
+        if (btn) { btn.textContent = '📡 Submit to Cloud'; btn.disabled = false; }
+        return false;
+      }
+      return await supaSubmit(payload);
+    };
+    const ok = await Promise.race([
+      submitWithTimeout(),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('Submit timed out after 30s')), 30000))
+    ]);
+    if (ok) {
+      flash('✅ Submitted to cloud — Central Server admin can see this now');
+      const csubEl = document.getElementById('c-sub');
+      if (csubEl) { csubEl.textContent = 'Yes ✓ (cloud)'; csubEl.style.color = '#c4962a'; }
+      const cliSt = document.getElementById('cli-st');
+      if (cliSt) cliSt.textContent = '☁ Submitted';
+      if (btn) { btn.style.display = 'none'; }
+    } else {
+      flash('⚠ Cloud submit failed — check internet and try again', false);
+      if (btn) { btn.textContent = '📡 Submit to Cloud'; btn.disabled = false; }
+    }
+  } catch(e) {
+    flash('Submit error: ' + e.message, false);
+    if (btn) { btn.textContent = '📡 Submit to Cloud'; btn.disabled = false; }
+  }
+}
+
+// ── EXPORT JSON — offline fallback ───────────────────────────
+async function exportResults() {
+  if (!aRes) { flash('Run the analysis first', false); return; }
+  const nn  = document.getElementById('nn').value.trim() || 'Unknown Node';
+  try {
+    const payload = await buildPayload(nn);
+    const blob  = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const fname = `AHFoZ_${nn.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.json`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fname; a.click();
+    URL.revokeObjectURL(a.href);
+    flash(`✅ Exported: ${fname} — send this file to admin if cloud is unavailable`);
+  } catch(e) { flash('Export error: ' + e.message, false); }
+}
+
+// ── Import (decrypt on load) ──────────────────────────────────
+const impDz=document.getElementById('imp-dz')||document.getElementById('import-dz');
+if(impDz){
+  impDz.addEventListener('dragover',e=>{e.preventDefault();impDz.classList.add('ov');});
+  impDz.addEventListener('dragleave',()=>impDz.classList.remove('ov'));
+  impDz.addEventListener('drop',e=>{e.preventDefault();impDz.classList.remove('ov');importFiles({target:{files:e.dataTransfer.files}});});
+}
+function showImportModal(){if(impDz)impDz.querySelector('input[type=file]').click();}
+
+async function importFiles(event){
+  const files=Array.from(event.target.files||[]);
+  if(!files.length)return;
+  let imported=0,skipped=0;
+  for(const file of files){
+    try{
+      const raw=JSON.parse(await file.text());
+      const items=Array.isArray(raw)?raw:[raw];
+      for(const item of items){
+        if(!item.node_name||!item.submitted_at){skipped++;continue;}
+        const existing=await dbGetAll();
+        if(existing.find(e=>e.node_name===item.node_name&&e.submitted_at===item.submitted_at)){skipped++;continue;}
+        const toSave={...item};delete toSave.id;
+        if(item.encrypted_detail){try{toSave._detail=await aesDecrypt(item.encrypted_detail,PW);}catch(e){console.warn('Decrypt failed:',e.message);}}
+        delete toSave.encrypted_detail;
+        await dbPut(toSave);imported++;
+      }
+    }catch(e){flash(`❌ Cannot read ${file.name}: ${e.message}`,false);}
+  }
+  if(imported>0){flash(`✅ Imported ${imported} result${imported>1?'s':''}${skipped>0?` (${skipped} skipped)`:''}`);await rDash();}
+  else if(skipped>0)flash(`Already imported — no new data`,false);
+}
+
+// ── Render Client ─────────────────────────────────────────────
+function renderClient(R){
+  document.getElementById('cig').innerHTML=[
+    {c:'gc',i:'💰',t:'Total Claimed',v:F(R.claimed),d:`${R.n} records`},
+    {c:'gc',i:'✅',t:'Total Final Paid',v:F(R.awarded),d:`Award rate: ${Pct(R.ar)} | Paid vs sched: ${Pct(R.par)}`},
+    {c:'r',i:'🚨',t:'FWA Alerts',v:R.fwa.length,d:`${R.fwa.filter(x=>x.severity==='HIGH').length} HIGH · ${R.fwa.filter(x=>x.severity==='MEDIUM').length} MEDIUM`},
+    {c:'r',i:'📈',t:'Outliers >3SD',v:R.out3.length,d:`Threshold: ${F(R.metrics.th3)}`},
+    {c:'pc',i:'🔁',t:'Duplicates',v:R.dups.length,d:`Recovery: ${F(R.dups.reduce((s,x)=>s+x.amt,0))}`},
+    {c:'ac',i:'💸',t:'Overpayments',v:R.overpay.length,d:`Excess: ${F(R.overpay.reduce((s,x)=>s+x.excess,0))}`},
+    {c:'r',i:'⛔',t:'Terminated Members',v:R.term.length,d:'Not payable — recovery required'},
+    {c:'tc',i:'📅',t:'Daily Anomalies',v:R.daily.filter(x=>x.flag).length,d:'Abnormal single-day volumes'},
+  ].map(x=>`<div class="ic ${x.c}"><div class="ic-i">${x.i}</div><div class="ic-t">${x.t}</div><div class="ic-v">${x.v}</div><div class="ic-d">${x.d}</div></div>`).join('');
+  document.getElementById('crat').innerHTML=[
+    ['Award Rate (Paid/Billed)',Pct(R.ar),'Final paid ÷ billed'],
+    ['Paid vs Schedule',Pct(R.par),'Final paid ÷ tariff — >100% = overpayment'],
+    ['Tariff Compliance',Pct(R.tc),'Tariff ÷ billed'],
+    ['Rejection Rate',Pct(R.rej/Math.max(R.n,1)),'Any >1% review'],
+    ['Tariff Gap (Paid−Sched)',F(R.tariffGap),'Final paid minus schedule'],
+  ].map(([l,v,n])=>`<div class="sr"><span class="sl">${l}<br><span style="font-size:.55rem;opacity:.5">${n}</span></span><span class="sv ac">${v}</span></div>`).join('');
+  document.getElementById('fl-intro').innerHTML=`<strong style="color:var(--white)">${R.fwa.length} claims flagged</strong>`;
+  rfC();
+  document.getElementById('ou-i').textContent=`Mean: ${F(R.metrics.mn)} | 2SD: ${F(R.metrics.th2)} | 3SD: ${F(R.metrics.th3)}. ${R.out3.length} exceed 3SD.`;
+  document.getElementById('out-t').innerHTML=R.out2.sort((a,b)=>b.amt-a.amt).slice(0,200).map(o=>`<tr><td style="color:var(--teal);font-weight:700">${o.claim}</td><td><span class="badge ${o.level==='3SD'?'bh':'bm'}">${o.level}</span></td><td>${o.provider}</td><td>${o.member}</td><td class="num" style="color:var(--amber)">${F(o.amt)}</td><td>${o.date}</td><td>${o.service}</td><td style="font-size:.56rem;color:var(--muted)">${o.finding}</td></tr>`).join('')||emptyRow(8);
+  document.getElementById('du-i').textContent=`${R.dups.length} duplicates. Total: ${F(R.dups.reduce((s,x)=>s+x.amt,0))}.`;
+  document.getElementById('dup-t').innerHTML=R.dups.slice(0,200).map(d=>`<tr><td style="color:var(--teal);font-weight:700">${d.claim}</td><td>${d.member}</td><td>${d.provider}</td><td>${d.svc}</td><td>${d.date}</td><td class="num">${F(d.amt)}</td><td style="color:var(--purple)">${d.count}</td></tr>`).join('')||emptyRow(7);
+  document.getElementById('op-i').textContent=`${R.overpay.length} overpayments. Excess: ${F(R.overpay.reduce((s,x)=>s+x.excess,0))}.`;
+  document.getElementById('op-t').innerHTML=R.overpay.sort((a,b)=>b.excess-a.excess).slice(0,200).map(o=>`<tr><td style="color:var(--teal);font-weight:700">${o.claim}</td><td>${o.provider}</td><td>${o.service}</td><td class="num">${F(o.claimed)}</td><td class="num">${F(o.tariff)}</td><td class="num">${F(o.awarded)}</td><td class="num" style="color:var(--red);font-weight:700">${F(o.excess)}</td></tr>`).join('')||emptyRow(7);
+  document.getElementById('qt-i').textContent=`${R.qty.length} quantity abuse lines.`;
+  document.getElementById('qty-t').innerHTML=R.qty.sort((a,b)=>b.qty-a.qty).slice(0,200).map(q=>`<tr><td style="color:var(--teal);font-weight:700">${q.claim}</td><td>${q.member}</td><td>${q.provider}</td><td>${q.service}</td><td style="color:var(--red);font-weight:700">${Math.round(q.qty).toLocaleString()}</td><td>${Math.round(q.qt).toLocaleString()}</td><td><span class="badge bh">QTY ABUSE</span></td></tr>`).join('')||emptyRow(7);
+  document.getElementById('pr-i').textContent=`${R.provs.length} providers. Award rate <85%: ${R.provs.filter(p=>p.awardRate<0.85).length}.`;
+  document.getElementById('prov-t').innerHTML=R.provs.slice(0,100).map(p=>`<tr><td style="color:var(--teal);font-weight:700">${p.pid}</td><td>${p.lines}</td><td class="num">${F(p.claimed)}</td><td class="num">${F(p.awarded)}</td><td style="color:${p.awardRate<0.75?'var(--red)':p.awardRate<0.85?'var(--amber)':'var(--green)'}">${Pct(p.awardRate)}</td><td class="num">${F(p.tariffGap)}</td><td class="num">${F(p.avg)}</td><td><span class="badge ${p.risk==='HIGH'?'bh':p.risk==='MEDIUM'?'bm':'bl'}">${p.risk}</span></td></tr>`).join('')||emptyRow(8);
+  document.getElementById('dv-t').innerHTML=R.daily.slice(0,200).map(d=>`<tr><td style="color:var(--teal);font-weight:700">${d.provider}</td><td>${d.date}</td><td style="color:${d.flag==='HIGH'?'var(--red)':d.flag==='MEDIUM'?'var(--amber)':'var(--text)'};font-weight:${d.flag?700:400}">${d.count}</td><td class="num">${F(d.total)}</td><td>${d.meanDaily>0?'×'+(d.count/d.meanDaily).toFixed(1):'-'}</td><td><span class="badge ${d.sdLevel>2?'bh':d.sdLevel>1.5?'bm':'bl'}">${d.sdLevel.toFixed(1)} SD</span></td><td>${d.flag?`<span class="badge ${d.flag==='HIGH'?'bh':'bm'}">${d.flag} VOL</span>`:'-'}</td></tr>`).join('')||emptyRow(7);
+  document.getElementById('mb-i').textContent=`${R.mems.length} members. High utilisers: ${R.mems.filter(m=>m.highUtil).length}.`;
+  document.getElementById('mem-t').innerHTML=R.mems.slice(0,100).map(m=>`<tr><td>${m.mid}</td><td>${m.lines}</td><td class="num">${F(m.claimed)}</td><td class="num">${F(m.avg)}</td><td>${m.terminated?'<span class="badge bh">YES</span>':'-'}</td><td>${m.highUtil?'<span class="badge bm">YES</span>':'-'}</td><td><span class="badge ${m.terminated?'bh':m.highUtil?'bm':'bl'}">${m.terminated?'HIGH':m.highUtil?'MEDIUM':'LOW'}</span></td></tr>`).join('')||emptyRow(7);
+  document.getElementById('lc-i').textContent=`${R.late.length} late claims (>90d).`;
+  document.getElementById('late-t').innerHTML=R.late.sort((a,b)=>b.lag-a.lag).slice(0,200).map(l=>`<tr><td style="color:var(--teal);font-weight:700">${l.claim}</td><td>${l.member}</td><td>${l.provider}</td><td>${l.td}</td><td>${l.cd}</td><td style="color:${l.lag>365?'var(--red)':l.lag>180?'var(--amber)':'var(--muted)'}">${l.lag}</td><td class="num">${F(l.amt)}</td><td><span class="badge ${l.risk==='EXTREME'||l.risk==='HIGH'?'bh':'bm'}">${l.risk}</span></td></tr>`).join('')||emptyRow(8);
+}
+function rfC(){
+  const list=aRes?.fwa||[];const sf=document.getElementById('cfs').value,cf=document.getElementById('cfc').value;
+  renderFlagPanel('fl-list',list.filter(a=>(sf==='ALL'||a.severity===sf)&&(cf==='ALL'||a.check===cf)),null);
+}
+function renderFlagPanel(targetId,fwa,nodeField){
+  const el=document.getElementById(targetId);
+  if(!fwa.length){el.innerHTML='<div class="empty"><span class="ei">✅</span>No flagged claims for this filter.</div>';return;}
+  const by={};
+  fwa.forEach(a=>{const k=(nodeField?a[nodeField]||'':'')+'||'+(a.claim||'?');if(!by[k])by[k]={claim:a.claim,node:nodeField?a[nodeField]||'':null,reasons:[],maxSev:'LOW',provider:a.provider,member:a.member,amt:a.amt};by[k].reasons.push({sev:a.severity,check:a.check,finding:a.finding});if(a.severity==='HIGH'||(a.severity==='MEDIUM'&&by[k].maxSev==='LOW'))by[k].maxSev=a.severity;});
+  const sorted=Object.values(by).sort((a,b)=>({'HIGH':0,'MEDIUM':1,'LOW':2}[a.maxSev]||3)-({'HIGH':0,'MEDIUM':1,'LOW':2}[b.maxSev]||3));
+  el.innerHTML=sorted.slice(0,150).map(c=>`<div class="fp"><div class="fp-h"><span class="fp-cn">📋 ${c.claim}</span><span class="badge ${c.maxSev==='HIGH'?'bh':c.maxSev==='MEDIUM'?'bm':'bl'}">${c.maxSev} RISK</span>${c.node?`<span class="badge bt2">${c.node}</span>`:''}<span style="flex:1"></span><span style="font-size:.58rem;color:var(--muted);margin-left:.4rem">Prov: <strong style="color:var(--teal)">${c.provider}</strong> · Mbr: <strong style="color:var(--blue)">${c.member}</strong> · <strong style="color:var(--amber)">${F(c.amt)}</strong></span></div><div class="fp-rs">${c.reasons.map(r=>`<span class="badge ${r.sev==='HIGH'?'bh':r.sev==='MEDIUM'?'bm':'bl'}">${r.check}</span>`).join('')}</div>${c.reasons.map(r=>`<div class="fp-row" style="border-left-color:${r.sev==='HIGH'?'var(--red)':r.sev==='MEDIUM'?'var(--amber)':'var(--green)'}"><strong style="color:${r.sev==='HIGH'?'var(--red)':r.sev==='MEDIUM'?'var(--amber)':'var(--green)'}">[${r.check}]</strong> ${r.finding}</div>`).join('')}</div>`).join('');
+}
+function updateSidebar(R){
+  document.getElementById('c-tot').textContent=F(R.claimed);
+  const paid=document.getElementById('c-paid');if(paid)paid.textContent=F(R.awarded);
+  document.getElementById('c-ar').textContent=Pct(R.ar);
+  const par=document.getElementById('c-par');if(par)par.textContent=Pct(R.par);
+  document.getElementById('c-al').textContent=R.fwa.length;document.getElementById('c-3sd').textContent=R.out3.length;
+  document.getElementById('c-dp').textContent=R.dups.length;document.getElementById('c-op').textContent=R.overpay.length;
+  document.getElementById('c-tm').textContent=R.term.length;document.getElementById('c-lt').textContent=R.late.length;
+  document.getElementById('c-qt').textContent=R.qty.length;document.getElementById('c-uc').textContent=R.upcodes.length;
+  document.getElementById('c-tg').textContent=F(R.tariffGap);
+}
+
+// ── Server Dashboard ──────────────────────────────────────────
+async function rDash(){
+  // Only run dashboard updates when on Central Server view
+  if (!document.getElementById('vs').classList.contains('active')) return;
+  document.getElementById('srv-ts').textContent='Loading…';
+  let data = await dbGetAll();
+
+  // Pull from Supabase cloud — cloud is AUTHORITATIVE
+  // Always wipe local and replace with exactly what cloud has
+  if (supaReady) {
+    try {
+      const cloudRows = await supaFetchAll();
+      // Clear local first, then repopulate from cloud
+      await dbClear();
+      if (cloudRows && cloudRows.length) {
+        for (const row of cloudRows) {
+          const toSave = { ...row };
+          // Decrypt encrypted_detail → _detail so all dashboard tabs work
+          if (toSave.encrypted_detail && !toSave._detail) {
+            try { toSave._detail = await aesDecrypt(toSave.encrypted_detail, PW); }
+            catch(e) { console.warn('Detail decrypt:', e.message); }
+          }
+          await dbPut(toSave);
+        }
+      }
+      // Re-read from IndexedDB
+      data = await dbGetAll();
+      document.getElementById('srv-ts').textContent = 'Updated '+new Date().toLocaleTimeString()+' · '+data.length+' submission'+(data.length!==1?'s':'')+' · ☁ Supabase live';
+    } catch(e) {
+      console.warn('Supabase sync error:', e.message);
+      document.getElementById('srv-ts').textContent = 'Updated '+new Date().toLocaleTimeString()+' · '+data.length+' (local only)';
+    }
+  } else {
+    document.getElementById('srv-ts').textContent = 'Updated '+new Date().toLocaleTimeString()+' · '+data.length+' submission'+(data.length!==1?'s':'')+' · 💾 Local only';
+  }
+
+  if(!data.length){
+    ['k-n','k-r','k-f','k-h','k-c','k-d','k-xp','k-tg'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent='0';});
+    const ndl=document.getElementById('ndl');
+    if(ndl)ndl.innerHTML='<div class="empty"><span class="ei">📥</span>No funds imported yet.<br>Node: Run Analysis → Export Results → send JSON here.<br>Admin: Drag the JSON file onto the green drop zone above.</div>';
+    document.getElementById('srv-ig').innerHTML='';
+    const nt=document.getElementById('nd-t');if(nt)nt.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">No data</td></tr>';
+    return;
+  }
+
+  // Build per-fund map (keyed by node_name)
+  const nm={};
+  const allFWA=[],allOut=[],allDups=[],allOP=[],allQty=[],allTerm=[],allLate=[],allProvs=[],allMems=[],allDV=[];
+  let tF=0,tH=0,tC=0,tTG=0;
+  const checkTotals={},svcTotals={},provIdx={},dvIdx={};
+
+  // Pre-decrypt any encrypted_detail that wasn't decrypted at storage time
+  for (const d of data) {
+    if (d.encrypted_detail && !d._detail) {
+      try { d._detail = await aesDecrypt(d.encrypted_detail, PW); }
+      catch(e) { d._detail = {}; }
+    }
+  }
+
+  data.forEach(d=>{
+    const nn=(d.node_name||'?').trim();
+    const agg=d.aggregate||{};
+    const det=d._detail||{};
+
+    if(!nm[nn])nm[nn]={name:nn,subs:0,claims:0,alerts:0,highAlerts:0,ar:0,par:0,tg:0,claimed:0,awarded:0,checks:{},last:d.submitted_at,hasDetail:!!d._detail};
+    const n=nm[nn];n.subs++;n.last=d.submitted_at;n.hasDetail=n.hasDetail||!!d._detail;
+    // Declare counts FIRST before using them
+    const detFWA = det.fwa||[];
+    const fwaCount = detFWA.length || +(agg.total_fwa_alerts||0);
+    const highCount = detFWA.length ? detFWA.filter(a=>a.severity==='HIGH').length : +(agg.high_severity||0);
+    n.claims+=+(agg.total_claims||0);
+    n.alerts+=fwaCount;
+    n.highAlerts+=highCount;
+    n.claimed+=+(agg.total_claimed||0);n.awarded+=+(agg.total_awarded||0);
+    n.ar=+(agg.award_rate||0);n.par=+(agg.paid_vs_schedule||0);n.tg+=+(agg.tariff_gap||0);
+    tF+=fwaCount; tH+=highCount; tC+=+(agg.total_claims||0); tTG+=+(agg.tariff_gap||0);
+
+    (d.check_aggregates||[]).forEach(c=>{
+      if(!checkTotals[c.check])checkTotals[c.check]={count:0,amt:0,high:0,med:0,nodes:new Set()};
+      checkTotals[c.check].count+=+(c.flagged_count||0);checkTotals[c.check].amt+=+(c.total_amount||0);
+      checkTotals[c.check].high+=+(c.severity_high||0);checkTotals[c.check].med+=+(c.severity_med||0);
+      checkTotals[c.check].nodes.add(nn);
+      if(!n.checks[c.check])n.checks[c.check]={count:0,high:0};
+      n.checks[c.check].count+=+(c.flagged_count||0);n.checks[c.check].high+=+(c.severity_high||0);
+    });
+
+    // Decrypted detail arrays
+    if(det.fwa)    det.fwa.forEach(a=>allFWA.push({...a,_node:nn}));
+    if(det.out2)   det.out2.forEach(o=>allOut.push({...o,_node:nn}));
+    if(det.dups)   det.dups.forEach(d=>allDups.push({...d,_node:nn}));
+    if(det.overpay)det.overpay.forEach(o=>allOP.push({...o,_node:nn}));
+    if(det.qty)    det.qty.forEach(q=>allQty.push({...q,_node:nn}));
+    if(det.term)   det.term.forEach(t=>allTerm.push({...t,_node:nn}));
+    if(det.late)   det.late.forEach(l=>allLate.push({...l,_node:nn}));
+    if(det.provs)  det.provs.forEach(p=>allProvs.push({...p,_node:nn}));
+    if(det.mems)   det.mems.forEach(m=>allMems.push({...m,_node:nn}));
+    if(det.daily)  det.daily.forEach(dv=>allDV.push({...dv,_node:nn}));
+  });
+
+  const nc=Object.keys(nm).length;
+  const dupCount=allDups.length||checkTotals['DUPLICATE']?.count||0;
+  const tClaimed=Object.values(nm).reduce((s,n)=>s+n.claimed,0);
+  const tAwarded=Object.values(nm).reduce((s,n)=>s+n.awarded,0);
+  const avgAR=nc>0?Object.values(nm).reduce((s,n)=>s+n.ar,0)/nc:0;
+
+  // KPIs
+  document.getElementById('k-n').textContent=nc;document.getElementById('k-r').textContent=data.length;
+  document.getElementById('k-f').textContent=tF.toLocaleString();document.getElementById('k-h').textContent=tH.toLocaleString();
+  document.getElementById('k-c').textContent=tC.toLocaleString();document.getElementById('k-d').textContent=dupCount;
+  document.getElementById('k-xp').textContent='—';document.getElementById('k-tg').textContent=F(tTG);
+
+  document.getElementById('srv-ig').innerHTML=[
+    {c:'gc',i:'💰',t:'Industry Claimed',v:F(tClaimed),d:`${nc} fund${nc!==1?'s':''}`},
+    {c:'gc',i:'✅',t:'Industry Final Paid',v:F(tAwarded),d:`Avg award rate: ${Pct(avgAR)}`},
+    {c:'r',i:'🚨',t:'FWA Alerts',v:tF.toLocaleString(),d:`${tH} HIGH severity`},
+    {c:'r',i:'🔁',t:'Duplicates',v:dupCount,d:'Across all funds'},
+    {c:'pc',i:'⛔',t:'Terminated Claims',v:allTerm.length||checkTotals['TERMINATED']?.count||0,d:'Not payable'},
+    {c:'bc',i:'🧠',t:'Submissions',v:data.length,d:'In IndexedDB'},
+  ].map(x=>`<div class="ic ${x.c}"><div class="ic-i">${x.i}</div><div class="ic-t">${x.t}</div><div class="ic-v">${x.v}</div><div class="ic-d">${x.d}</div></div>`).join('');
+
+  // Fund cards
+  const ndlEl=document.getElementById('ndl');const nclEl=document.getElementById('nc-l');
+  if(nclEl)nclEl.textContent=nc+' fund'+(nc!==1?'s':'');
+  if(ndlEl)ndlEl.innerHTML=nc?Object.values(nm).sort((a,b)=>b.alerts-a.alerts).map(n=>`<div class="nc"><div class="na">${n.name.substring(0,2).toUpperCase()}</div><div class="ni"><div class="nn">${n.name} ${n.hasDetail?'<span class="badge bl" style="font-size:.5rem">🔓 Full</span>':'<span class="badge bm" style="font-size:.5rem">⚠ Aggregate</span>'}</div><div class="nm">Claims: <strong>${n.claims.toLocaleString()}</strong> · FWA: <strong style="color:var(--red)">${n.alerts}</strong> · HIGH: <strong style="color:var(--red)">${n.highAlerts}</strong> · AR: <strong style="color:${n.ar<0.85?'var(--red)':n.ar<0.9?'var(--amber)':'var(--green)'}">${Pct(n.ar)}</strong> · Gap: ${F(n.tg)}</div></div><span class="nba">ACTIVE</span></div>`).join(''):'<div class="empty"><span class="ei">📥</span>No funds yet.<br>Export from node and drag the JSON here.</div>';
+
+  // Severity bar
+  const hi=tH,mi=tF-tH;const mx=Math.max(hi,mi,1);
+  barChart('sev-bc',[[hi,'var(--red)'],[mi,'var(--amber)'],[0,'var(--green)']].map(([v,c])=>[(v/mx*58)|0,c]));
+  const sevBl=document.getElementById('sev-bl');if(sevBl)sevBl.innerHTML=['HIGH '+hi,'MED '+mi,'LOW 0'].map(l=>`<div>${l}</div>`).join('');
+
+  // Fund node table (sv-nd)
+  const ndEl=document.getElementById('nd-t');
+  if(ndEl)ndEl.innerHTML=nc?Object.values(nm).sort((a,b)=>b.claims-a.claims).map(n=>{
+    const topChecks=Object.entries(n.checks).sort((a,b)=>b[1].count-a[1].count).slice(0,3).map(([k,v])=>`<span class="badge bm" style="font-size:.5rem">${k.substring(0,8)}: ${v.count}</span>`).join(' ');
+    return`<tr><td style="color:var(--white);font-weight:700">${n.name} ${n.hasDetail?'<span class="badge bl" style="font-size:.5rem">🔓</span>':'<span class="badge bm" style="font-size:.5rem">⚠</span>'}</td><td>${n.claims.toLocaleString()}</td><td class="num">${F(n.claimed)}</td><td class="num">${F(n.awarded)}</td><td style="color:${n.ar<0.85?'var(--red)':n.ar<0.9?'var(--amber)':'var(--green)'}">${Pct(n.ar)}</td><td style="color:${n.par>1?'var(--red)':n.par>0.95?'var(--amber)':'var(--green)'}">${Pct(n.par)}</td><td style="color:var(--red);font-weight:700">${n.alerts}</td><td style="color:var(--red)">${n.highAlerts}</td><td class="num">${F(n.tg)}</td><td style="font-size:.58rem">${topChecks||'—'}</td></tr>`;
+  }).join(''):'<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">No data</td></tr>';
+
+  // Flagged claims (sv-fl) — identical to client, with Fund column
+  const sfSel=document.getElementById('sf-n');
+  if(sfSel){const nodes=[...new Set(allFWA.map(a=>a._node))].filter(Boolean);const cur=sfSel.value;sfSel.innerHTML='<option value="ALL">All Funds</option>'+nodes.map(n=>`<option value="${n}">${n}</option>`).join('');sfSel.value=cur;}
+  rSFL(allFWA);
+
+  // Helper: Fund cell
+  const FB=nn=>`<td style="color:var(--green);font-weight:700;white-space:nowrap">${nn}</td>`;
+  const noDetail=n=>`<tr><td colspan="${n}" style="text-align:center;color:var(--muted);padding:1.5rem">Re-export from node to see detail</td></tr>`;
+
+  // OUTLIERS (sv-ou)
+  const ouEl=document.getElementById('srv-ou-i');if(ouEl)ouEl.textContent=allOut.length?`${allOut.length} outliers. Mean: ${F(data[0]?.metrics?.mn)} | 3SD: ${F(data[0]?.metrics?.th3)}`:'No detail yet — re-export from node.';
+  document.getElementById('sou-t').innerHTML=allOut.length?allOut.sort((a,b)=>b.amt-a.amt).slice(0,400).map(o=>`<tr>${FB(o._node)}<td style="color:var(--teal);font-weight:700">${o.claim||'—'}</td><td><span class="badge ${o.level==='3SD'?'bh':'bm'}">${o.level||'—'}</span></td><td>${o.provider||'—'}</td><td>${o.member||'—'}</td><td class="num" style="color:var(--amber)">${F(o.amt)}</td><td>${o.date||'—'}</td><td>${(o.service||'—').substring(0,40)}</td><td style="font-size:.56rem;color:var(--muted)">${o.finding||'—'}</td></tr>`).join(''):noDetail(9);
+
+  // DUPLICATES (sv-du)
+  const duEl=document.getElementById('srv-du-i');if(duEl)duEl.textContent=allDups.length?`${allDups.length} duplicates. Recovery: ${F(allDups.reduce((s,x)=>s+(x.amt||0),0))}`:'No detail yet — re-export from node.';
+  document.getElementById('sdu-t').innerHTML=allDups.length?allDups.slice(0,400).map(d=>`<tr>${FB(d._node)}<td style="color:var(--teal);font-weight:700">${d.claim||'—'}</td><td>${d.member||'—'}</td><td>${d.provider||'—'}</td><td>${d.svc||'—'}</td><td>${d.date||'—'}</td><td class="num">${F(d.amt)}</td><td style="color:var(--purple)">${d.count||'—'}</td></tr>`).join(''):noDetail(8);
+
+  // OVERPAYMENTS (sv-op)
+  const opArr=allOP.sort((a,b)=>(b.excess||0)-(a.excess||0));
+  const opEl=document.getElementById('srv-op-i');if(opEl)opEl.textContent=opArr.length?`${opArr.length} overpayments. Excess: ${F(opArr.reduce((s,x)=>s+(x.excess||0),0))}`:'No detail yet — re-export from node.';
+  document.getElementById('sop-t').innerHTML=opArr.length?opArr.slice(0,400).map(o=>`<tr>${FB(o._node)}<td style="color:var(--teal);font-weight:700">${o.claim||'—'}</td><td>${o.provider||'—'}</td><td>${(o.service||'—').substring(0,22)}</td><td class="num">${F(o.claimed)}</td><td class="num">${F(o.tariff)}</td><td class="num">${F(o.awarded)}</td><td class="num" style="color:var(--red);font-weight:700">${F(o.excess)}</td></tr>`).join(''):noDetail(8);
+
+  // QTY ABUSE (sv-qt)
+  const qtArr=allQty.sort((a,b)=>b.qty-a.qty);
+  const qtEl=document.getElementById('srv-qt-i');if(qtEl)qtEl.textContent=qtArr.length?`${qtArr.length} quantity abuse lines.`:'No detail yet — re-export from node.';
+  const sqtEl=document.getElementById('sqt-t');if(sqtEl)sqtEl.innerHTML=qtArr.length?qtArr.slice(0,400).map(q=>`<tr>${FB(q._node)}<td style="color:var(--teal);font-weight:700">${q.claim||'—'}</td><td>${q.member||'—'}</td><td>${q.provider||'—'}</td><td>${(q.service||'—').substring(0,30)}</td><td style="color:var(--red);font-weight:700">${Math.round(q.qty||0).toLocaleString()}</td><td>${Math.round(q.qt||0).toLocaleString()}</td><td><span class="badge bh">QTY ABUSE</span></td></tr>`).join(''):noDetail(8);
+
+  // PROVIDERS (sv-pr)
+  const prArr=allProvs.sort((a,b)=>b.claimed-a.claimed);
+  const prEl=document.getElementById('srv-pr-i');if(prEl)prEl.textContent=prArr.length?`${prArr.length} provider records. Award rate <85%: ${prArr.filter(p=>(p.awardRate||0)<0.85).length}`:'No detail yet — re-export from node.';
+  const sprEl=document.getElementById('spr-t');if(sprEl)sprEl.innerHTML=prArr.length?prArr.slice(0,400).map(p=>`<tr>${FB(p._node)}<td style="color:var(--teal);font-weight:700">${p.pid||'—'}</td><td>${(p.lines||0).toLocaleString()}</td><td class="num">${F(p.claimed)}</td><td class="num">${F(p.awarded)}</td><td style="color:${(p.awardRate||0)<0.75?'var(--red)':(p.awardRate||0)<0.85?'var(--amber)':'var(--green)'}">${Pct(p.awardRate)}</td><td class="num">${F(p.tariffGap)}</td><td class="num">${F(p.avg)}</td><td><span class="badge ${p.risk==='HIGH'?'bh':p.risk==='MEDIUM'?'bm':'bl'}">${p.risk||'—'}</span></td></tr>`).join(''):noDetail(9);
+
+  // DAILY VOLUMES (sv-dv)
+  const dvArr=allDV.sort((a,b)=>b.count-a.count);
+  const sdvEl=document.getElementById('sdv-t');if(sdvEl)sdvEl.innerHTML=dvArr.length?dvArr.slice(0,400).map(d=>`<tr>${FB(d._node)}<td style="color:var(--teal);font-weight:700">${d.provider||'—'}</td><td>${d.date||'—'}</td><td style="color:${d.flag==='HIGH'?'var(--red)':d.flag==='MEDIUM'?'var(--amber)':'var(--text)'};font-weight:${d.flag?700:400}">${d.count||0}</td><td class="num">${F(d.total)}</td><td style="color:${(d.count||0)>(d.meanDaily||0)*2?'var(--red)':(d.count||0)>(d.meanDaily||0)*1.5?'var(--amber)':'var(--muted)'}">×${d.meanDaily>0?((d.count||0)/d.meanDaily).toFixed(1):'-'}</td><td><span class="badge ${(d.sdLevel||0)>2?'bh':(d.sdLevel||0)>1.5?'bm':'bl'}">${(d.sdLevel||0).toFixed(1)} SD</span></td><td>${d.flag?`<span class="badge ${d.flag==='HIGH'?'bh':'bm'}">${d.flag} VOL</span>`:'-'}</td></tr>`).join(''):noDetail(8);
+
+  // MEMBERS (sv-mb)
+  const mbArr=allMems.sort((a,b)=>b.claimed-a.claimed);
+  const mbEl=document.getElementById('srv-mb-i');if(mbEl)mbEl.textContent=mbArr.length?`${mbArr.length} members. High utilisers: ${mbArr.filter(m=>m.highUtil).length}. Terminated: ${mbArr.filter(m=>m.terminated).length}`:'No detail yet — re-export from node.';
+  const smbEl=document.getElementById('smb-t');if(smbEl)smbEl.innerHTML=mbArr.length?mbArr.slice(0,400).map(m=>`<tr>${FB(m._node)}<td>${m.mid||'—'}</td><td>${m.lines||0}</td><td class="num">${F(m.claimed)}</td><td class="num">${F(m.avg)}</td><td>${m.terminated?'<span class="badge bh">YES</span>':'-'}</td><td>${m.highUtil?'<span class="badge bm">YES</span>':'-'}</td><td><span class="badge ${m.terminated?'bh':m.highUtil?'bm':'bl'}">${m.terminated?'HIGH':m.highUtil?'MEDIUM':'LOW'}</span></td></tr>`).join(''):noDetail(8);
+
+  // LATE CLAIMS (sv-lc)
+  const lcArr=allLate.sort((a,b)=>(b.lag||0)-(a.lag||0));
+  const lcEl=document.getElementById('srv-lc-i');if(lcEl)lcEl.textContent=lcArr.length?`${lcArr.length} late claims. >180d: ${lcArr.filter(x=>(x.lag||0)>180).length}`:'No detail yet — re-export from node.';
+  const slcEl=document.getElementById('slc-t');if(slcEl)slcEl.innerHTML=lcArr.length?lcArr.slice(0,400).map(l=>`<tr>${FB(l._node)}<td style="color:var(--teal);font-weight:700">${l.claim||'—'}</td><td>${l.member||'—'}</td><td>${l.provider||'—'}</td><td>${l.td||'—'}</td><td>${l.cd||'—'}</td><td style="color:${(l.lag||0)>365?'var(--red)':(l.lag||0)>180?'var(--amber)':'var(--muted)'}">${l.lag||0}</td><td class="num">${F(l.amt)}</td><td><span class="badge ${l.risk==='EXTREME'||l.risk==='HIGH'?'bh':'bm'}">${l.risk||'—'}</span></td></tr>`).join(''):noDetail(9);
+
+  // Trends
+  buildTrends(checkTotals,svcTotals,nm,data);
+  // Cross-funder (basic from check aggregates)
+  const xpBEl=document.getElementById('xp-b');const xpDEl=document.getElementById('xp-d');
+  if(xpBEl)xpBEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.5rem">Cross-funder analysis available when 2+ funds imported</td></tr>';
+  if(xpDEl)xpDEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--green);padding:1.5rem">✅ Import from 2+ funds to see cross-funder provider anomalies</td></tr>';
+  const xpCtEl=document.getElementById('xp-ct');if(xpCtEl)xpCtEl.textContent='0 providers';
+  // Eval
+  buildEval(data,checkTotals,tF,tH,tC);
+}
+
+function rSFL(passedFWA){
+  const all=passedFWA||[];
+  const sf=document.getElementById('sf-s').value,cf=document.getElementById('sf-c').value;
+  const nfEl=document.getElementById('sf-n');const nf=nfEl?nfEl.value:'ALL';
+  renderFlagPanel('sfl',all.filter(a=>(sf==='ALL'||a.severity===sf)&&(cf==='ALL'||a.check===cf)&&(nf==='ALL'||a._node===nf)),'_node');
+}
+
+function buildTrends(checkTotals,svcTotals,nm,data){
+  const C=['var(--red)','var(--amber)','var(--blue)','var(--purple)','var(--teal)','var(--green)'];
+  const ckK=Object.keys(checkTotals).sort((a,b)=>checkTotals[b].count-checkTotals[a].count).slice(0,8);
+  const ckMax=Math.max(...ckK.map(k=>checkTotals[k].count),1);
+  barChart('t-ck',ckK.map((k,i)=>[(checkTotals[k].count/ckMax*78)|0,C[i%C.length]]));
+  const tckl=document.getElementById('t-ckl');if(tckl)tckl.innerHTML=ckK.map(k=>`<div title="${k}">${k.substring(0,6)}</div>`).join('');
+  const nN=Object.values(nm).map(n=>n.name);const nA=nN.map(n=>nm[n]?.alerts||0);const nMax=Math.max(...nA,1);
+  barChart('t-nd',nA.map((v,i)=>[(v/nMax*78)|0,C[i%C.length]]));
+  const tndl=document.getElementById('t-ndl');if(tndl)tndl.innerHTML=nN.map(n=>`<div>${n.substring(0,6)}</div>`).join('');
+  const arV=Object.values(nm).map(n=>n.ar);const arMax=Math.max(...arV,1);
+  barChart('t-ar',arV.map((v,i)=>[(v/arMax*78)|0,v<0.85?'var(--red)':v<0.9?'var(--amber)':'var(--green)']));
+  const tarl=document.getElementById('t-arl');if(tarl)tarl.innerHTML=nN.map((_,i)=>`<div>${(arV[i]*100).toFixed(0)}%</div>`).join('');
+  const tgV=Object.values(nm).map(n=>n.tg);const tgMax=Math.max(...tgV,0.001);
+  barChart('t-tg',tgV.map((v,i)=>[(v/tgMax*78)|0,v>50000?'var(--red)':v>10000?'var(--amber)':'var(--green)']));
+  const ttgl=document.getElementById('t-tgl');if(ttgl)ttgl.innerHTML=nN.map((_,i)=>`<div>$${(tgV[i]/1000).toFixed(0)}k</div>`).join('');
+  const tsv=document.getElementById('t-sv');
+  if(tsv)tsv.innerHTML=Object.entries(checkTotals).sort((a,b)=>b[1].count-a[1].count).slice(0,20).map(([k,v])=>`<tr><td style="color:var(--teal);font-weight:700">${k}</td><td style="color:var(--red)">${v.count}</td><td class="num">${F(v.amt)}</td><td><span class="badge ${v.nodes.size>1?'bh':'bm'}">${v.nodes.size} fund${v.nodes.size>1?'s':''}</span></td></tr>`).join('')||emptyRow(4);
+  const monthly={};data.forEach(d=>{if(d.submitted_at){const m=d.submitted_at.substring(0,7);monthly[m]=(monthly[m]||0)+(d.aggregate?.total_fwa_alerts||(d._detail?.fwa||[]).length||0);}});
+  const mK=Object.keys(monthly).sort().slice(-12);const mMax=Math.max(...mK.map(k=>monthly[k]),1);
+  barChart('t-mt',mK.map((k,i)=>[(monthly[k]/mMax*65)|0,i===mK.length-1?'var(--green)':'rgba(58,123,213,.4)']));
+  const tmtl=document.getElementById('t-mtl');if(tmtl)tmtl.innerHTML=mK.map(k=>`<div>${k.substring(5)}</div>`).join('');
+}
+
+function buildEval(data,checkTotals,tF,tH,tC){
+  const possible=new Set(['OUTLIER','DUPLICATE','OVERPAYMENT','QTY_ABUSE','TERMINATED','LATE_CLAIM','ABOVE_TARIFF','UPCODING','HIGH_UTILISER','DAILY_VOLUME','PROVIDER_RISK','MEMBER_RISK']);
+  const triggered=new Set(Object.keys(checkTotals));
+  const alertRate=tC>0?tF/tC:0;
+  const precProxy=tF>0?tH/tF:0;
+  const recProxy=[...triggered].filter(c=>possible.has(c)).length/possible.size;
+  const f1=(precProxy+recProxy)>0?2*precProxy*recProxy/(precProxy+recProxy):0;
+  const evg=document.getElementById('ev-g');
+  if(evg)evg.innerHTML=[
+    {v:Pct(alertRate),l:'Alert Rate',d:'% of claims flagged',col:'var(--red)',g:alertRate},
+    {v:Pct(precProxy),l:'Precision Proxy',d:'HIGH / total alerts',col:'var(--blue)',g:precProxy},
+    {v:Pct(recProxy),l:'Recall Proxy',d:'Fraction of 12 checks triggered',col:'var(--green)',g:recProxy},
+    {v:Pct(f1),l:'F1 Score Proxy',d:'Harmonic mean',col:'var(--purple)',g:f1},
+    {v:tF.toLocaleString(),l:'Total FWA Alerts',d:`${tH} HIGH`,col:'var(--red)',g:null},
+    {v:[...triggered].filter(c=>possible.has(c)).length+'/12',l:'Checks Active',d:'Triggered',col:'var(--teal)',g:null},
+  ].map(x=>`<div class="ev"><div class="ev-v" style="color:${x.col}">${x.v}</div><div class="ev-l">${x.l}</div>${x.g!==null?`<div class="gauge"><div class="gf" style="width:${(x.g*100).toFixed(0)}%;background:${x.col}"></div></div>`:'<div style="height:4px;margin:.4rem 0"></div>'}<div class="ev-d">${x.d}</div></div>`).join('');
+  const tA=[...triggered].filter(c=>possible.has(c)),mA=[...possible].filter(c=>!triggered.has(c));
+  const ckcov=document.getElementById('ck-cov');if(ckcov)ckcov.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:.2rem">${tA.map(c=>`<span style="background:rgba(0,214,143,.07);border:1px solid rgba(0,214,143,.16);color:var(--green);font-size:.55rem;padding:.08rem .38rem;border-radius:4px">✓ ${c}</span>`).join('')}${mA.map(c=>`<span style="background:rgba(232,64,96,.07);border:1px solid rgba(232,64,96,.16);color:var(--red);font-size:.55rem;padding:.08rem .38rem;border-radius:4px">✗ ${c}</span>`).join('')}</div>`;
+  const tp=tH,fp=tF-tH,fn=Math.round(tH*.08),tn=Math.max(0,tC-tF-fn);
+  const cfm=document.getElementById('cf-m');if(cfm)cfm.innerHTML=[{l:'True Positive',v:tp,c:'var(--green)'},{l:'False Positive',v:fp,c:'var(--amber)'},{l:'Est. False Neg',v:fn,c:'var(--red)'},{l:'True Negative',v:tn,c:'var(--muted)'}].map(x=>`<div class="cf-c"><div class="cf-l">${x.l}</div><div class="cf-v" style="color:${x.c}">${x.v.toLocaleString()}</div></div>`).join('');
+  const evnt=document.getElementById('ev-nt');if(evnt)evnt.innerHTML=data.map(d=>{const det=d._detail||{};const f=det.fwa||(d.check_aggregates||[]).reduce((a,c)=>a+c.flagged_count,0)||0;const hi2=det.fwa?det.fwa.filter(a=>a.severity==='HIGH').length:(d.aggregate?.high_severity||0);const ch=det.fwa?new Set(det.fwa.map(a=>a.check)).size:(d.check_aggregates||[]).length;const claims=d.aggregate?.total_claims||0;const ar=d.aggregate?.award_rate||0;const tg=d.aggregate?.tariff_gap||0;return`<tr><td style="color:var(--white)">${d.node_name} ${d._detail?'<span class="badge bl" style="font-size:.5rem">🔓</span>':'<span class="badge bm" style="font-size:.5rem">⚠</span>'}</td><td>${claims.toLocaleString()}</td><td>${Pct(typeof f==='number'?f/Math.max(claims,1):0)}</td><td style="color:${ar<0.85?'var(--red)':ar<0.9?'var(--amber)':'var(--green)'}">${Pct(ar)}</td><td>${F(tg)}</td><td style="color:var(--red)">${hi2}</td><td><span class="badge bt2">${ch}/12</span></td></tr>`;}).join('')||emptyRow(7);
+  const crr=document.getElementById('crr');if(crr)crr.innerHTML='<div class="empty"><span class="ei">🔍</span>Import from 2+ funds to see cross-fund corroboration</div>';
+}
+
+async function syncAndRefresh(){
+  const btn=document.getElementById('sync-btn');
+  if(btn){btn.textContent='⏳ Syncing…';btn.disabled=true;}
+  if(stEl)stEl.textContent=supaReady?'☁ Supabase':'💾 Local';
+  try{await rDash();}
+  finally{if(btn){btn.textContent='☁ Sync';btn.disabled=false;}}
+}
+
+
+async function expRef(){
+  const data=await dbGetAll();
+  const allFWA=data.flatMap(d=>(d._detail?.fwa||[]).map(a=>({...a,_node:d.node_name})));
+  if(!allFWA.length){flash('No flagged detail — re-export from node',false);return;}
+  const ng={};allFWA.forEach(a=>{if(!ng[a._node])ng[a._node]=[];ng[a._node].push(a);});
+  let txt='AHFoZ REFERRAL REPORT\nGenerated: '+new Date().toLocaleString()+'\n'+'='.repeat(55)+'\n\n';
+  Object.entries(ng).forEach(([node,alerts])=>{txt+=`REFERRAL TO: ${node}\n${'-'.repeat(38)}\nFlagged: ${alerts.length}\n\n`;const bc={};alerts.forEach(a=>{if(!bc[a.claim])bc[a.claim]=[];bc[a.claim].push(a);});Object.entries(bc).forEach(([clm,rs])=>{txt+=`  Claim: ${clm}\n  Provider: ${rs[0].provider}  Member: ${rs[0].member}  Amount: ${F(rs[0].amt)}\n`;rs.forEach(r=>{txt+=`  → [${r.severity}] ${r.check}: ${r.finding}\n`;});txt+='\n';});});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download=`AHFoZ_Referral_${new Date().toISOString().split('T')[0]}.txt`;a.click();flash('✅ Referral exported');
+}
+
+
+
+// ── Setup wizard ─────────────────────────────────────────────
+function goStep(n){
+  document.querySelectorAll('.setup-step').forEach(s=>s.classList.remove('on'));
+  const el=document.getElementById('step-'+n);
+  if(el) el.classList.add('on');
+}
+function copySql(){
+  const sql=document.getElementById('sql-to-copy');
+  if(!sql)return;
+  navigator.clipboard.writeText(sql.textContent.trim())
+    .then(()=>flash('✅ SQL copied — paste in Supabase SQL Editor'));
+}
+async function saveKey(){
+  const inp=document.getElementById('supa-key-input');
+  const k=(inp?inp.value:'').trim();
+  if(!k||!k.startsWith('eyJ')){
+    flash('❌ Please paste a valid anon key — it starts with eyJ',false);
+    return;
+  }
+  // Key saved (legacy compatibility)
+  const btn=document.querySelector('#step-2 .btn-g');
+  if(btn){btn.textContent='⏳ Testing...';btn.disabled=true;}
+
+  const result=await supaInit();
+
+  if(btn){btn.textContent='🔗 Connect & Test';btn.disabled=false;}
+
+  if(result==='ok'){
+    supaReady=true;
+    updateSyncStatus('connected');
+    goStep(3);
+
+  } else if(result==='no_table'){
+    flash('✅ Key is valid! Now run the SQL to create the table.',false);
+    goStep(1);
+
+  } else if(result==='cors_error'){
+    // Key is valid but Supabase is blocking the file:// origin
+    // Show instructions to fix this in Supabase dashboard
+    goStep(4);
+
+  } else if(result==='timeout'){
+    flash('❌ Connection timed out — check your internet and try again',false);
+
+  } else {
+    flash('❌ Could not connect — double-check you copied the anon public key',false);
+    // Key cleared
+  }
+}
+
+
+
+// start: 'sql' = show step 1 first, 'key' = show step 2 first (node machines)
+
+
+// ── Node session management ─────────────────────────────────
+function onNodeNameChange() {
+  // Regenerate nodeId when name changes so same laptop = different node
+  nodeId = 'NODE_' + Math.random().toString(36).substr(2,6).toUpperCase();
+  const nidEl = document.getElementById('nid');
+  if (nidEl) nidEl.value = nodeId;
+}
+
+function newSession() {
+  // Full reset for submitting as a different fund on same machine
+  nodeId  = 'NODE_' + Math.random().toString(36).substr(2,6).toUpperCase();
+  cData   = [];
+  aRes    = null;
+  const nidEl = document.getElementById('nid');
+  if (nidEl) nidEl.value = nodeId;
+  // Reset UI
+  document.getElementById('c-rec').textContent  = '0';
+  document.getElementById('c-st').textContent   = 'Ready';
+  document.getElementById('c-sub').textContent  = 'No';
+  document.getElementById('c-sub').style.color  = '';
+  document.getElementById('c-al').textContent   = '0';
+  document.getElementById('c-cols').textContent = '-';
+  document.getElementById('c-tot').textContent  = '-';
+  document.getElementById('c-paid').textContent = '-';
+  document.getElementById('c-ar').textContent   = '-';
+  document.getElementById('c-3sd').textContent  = '-';
+  document.getElementById('c-dp').textContent   = '-';
+  document.getElementById('c-op').textContent   = '-';
+  document.getElementById('c-tm').textContent   = '-';
+  document.getElementById('c-lt').textContent   = '-';
+  document.getElementById('c-qt').textContent   = '-';
+  document.getElementById('c-tg').textContent   = '-';
+  document.getElementById('lm').style.display   = 'none';
+  document.getElementById('ac').style.display   = 'none';
+  document.getElementById('cmd').style.display  = 'none';
+  document.getElementById('cmd').innerHTML      = '';
+  document.getElementById('lb').innerHTML       = '<div class="ll in">// Awaiting dataset...</div>';
+  document.getElementById('pgw').style.display  = 'none';
+  document.getElementById('ctabs').style.display= 'none';
+  document.getElementById('sub-wrap').style.display = 'none';
+  // Show all tabs reset
+  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+  const firstTab = document.querySelector('.tbb');
+  if (firstTab) {
+    document.querySelectorAll('.tbb').forEach(b => b.classList.remove('on'));
+    firstTab.classList.add('on');
+  }
+  document.getElementById('tp-ov').classList.add('on');
+  // Reset submit button
+  const bs = document.getElementById('bs');
+  if (bs) { bs.style.display = 'none'; bs.disabled = false; bs.textContent = '📡 Submit to Cloud'; }
+  const bexp = document.getElementById('bexp');
+  if (bexp) bexp.style.display = 'none';
+  flash('✅ New session started — enter the fund name above and upload a new CSV');
+}
+
+// ── Clear ALL cloud data (admin only) ────────────────────────
+async function clearAll() {
+  const data = await dbGetAll();
+  const cloudCount = data.length;
+  if (!confirm(
+    `⚠️ CLEAR ALL DATA?\n\n` +
+    `This will permanently delete:\n` +
+    `• ${cloudCount} submission${cloudCount !== 1 ? 's' : ''} from the cloud database\n` +
+    `• All local IndexedDB data\n\n` +
+    `This cannot be undone. Continue?`
+  )) return;
+
+  // Step 1: Clear local IndexedDB FIRST — before anything else
+  await dbClear();
+
+  // Step 2: Clear cloud
+  if (supaReady) {
+    const cleared = await supaDeleteAll();
+    if (!cleared) {
+      flash('⚠️ Local cleared but cloud delete failed — try again', false);
+    }
+  }
+
+  // Step 3: Reset the UI directly — do NOT call rDash() which would re-fetch from cloud
+  // Zero out all KPI cards
+  ['k-n','k-r','k-f','k-h','k-c','k-d','k-xp','k-tg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  });
+  // Clear the fund list
+  const ndl = document.getElementById('ndl');
+  if (ndl) ndl.innerHTML = '<div class="empty"><span class="ei">&#x1F3E5;</span>No data — all submissions cleared.</div>';
+  // Clear the overview cards
+  const sig = document.getElementById('srv-ig');
+  if (sig) sig.innerHTML = '';
+  // Clear all server tab tables
+  ['sou-t','sdu-t','sop-t','sqt-t','sfl','srv-ou-i','srv-du-i','srv-op-i','srv-qt-i'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  // Update timestamp
+  const ts = document.getElementById('srv-ts');
+  if (ts) ts.textContent = 'Cleared at ' + new Date().toLocaleTimeString();
+
+  flash('✅ All data cleared — cloud and local both empty');
+}
+
+// Auto-sync every 15 seconds when on Central Server
+let autoSyncInterval = null;
+function startAutoSync() {
+  if (autoSyncInterval) clearInterval(autoSyncInterval);
+  autoSyncInterval = setInterval(async () => {
+    if (document.getElementById('vs').classList.contains('active')) {
+      const ind = document.getElementById('auto-sync-st');
+      if (ind) { ind.textContent = '● Syncing...'; ind.style.color = '#c4962a'; }
+      await rDash();
+      if (ind) { ind.textContent = '● Auto-sync 15s'; ind.style.color = '#446480'; }
+    }
+  }, 15000);
+}
+startAutoSync();
+</script>
+</body>
+</html>
